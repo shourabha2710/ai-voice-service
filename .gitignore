@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+
+# Virtual Env
+venv/
+.env
+
+# Logs
+logs/
+*.log
+
+# Audio Files
+generated_audio/
+temp_chunks/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Pytest
+.pytest_cache/
+
+# Coverage
+.coverage
+htmlcov/
+
+# Docker
+*.pid
+
+# FFmpeg temp
+*.tmp
+
+# Build
+dist/
+build/
+*.egg-info/
+
+# FFmpeg
+ffmpeg/
+ffmpeg.zip
