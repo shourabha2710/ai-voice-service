@@ -53,3 +53,5 @@ class CleanupService:
 
 # Remove global singleton - use dependency injection instead
 
+cleanup_service = CleanupService()
+
