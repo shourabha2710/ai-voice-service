@@ -1,5 +1,19 @@
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning)
+warnings.filterwarnings("ignore", message=".*ffmpeg.*", category=RuntimeWarning)
+
+# Patch pydub to avoid ffmpeg warning
+try:
+    import pydub.utils
+    def _patched_get_encoder_name():
+        return "ffmpeg"
+    pydub.utils.get_encoder_name = _patched_get_encoder_name
+except Exception:
+    pass
+
 import asyncio
 import sys
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -8,6 +22,21 @@ from fastapi.responses import JSONResponse
 from loguru import logger
 
 from app.config.settings import settings
+
+# Create ffmpeg.exe in PATH for pydub
+_ffmpeg_path = settings.get_ffmpeg_path()
+if _ffmpeg_path:
+    _ffmpeg_dir = os.path.dirname(_ffmpeg_path)
+    _ffmpeg_exe = os.path.join(_ffmpeg_dir, "ffmpeg.exe")
+    if not os.path.exists(_ffmpeg_exe):
+        try:
+            import shutil
+            shutil.copy2(_ffmpeg_path, _ffmpeg_exe)
+        except Exception:
+            pass
+    if _ffmpeg_dir and _ffmpeg_dir not in os.environ.get("PATH", ""):
+        os.environ["PATH"] = _ffmpeg_dir + os.pathsep + os.environ.get("PATH", "")
+
 from app.services.cleanup_service import cleanup_service
 from app.utils.logger import setup_logging
 

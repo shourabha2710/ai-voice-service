@@ -1,8 +1,23 @@
+import warnings
+warnings.filterwarnings("ignore", category=RuntimeWarning, module="pydub")
+
 from pydub import AudioSegment
 from pathlib import Path
 from loguru import logger
 import subprocess
 import os
+
+# Configure pydub to use the correct ffmpeg path
+def _configure_pydub_ffmpeg():
+    try:
+        from app.config.settings import settings
+        ffmpeg_path = settings.get_ffmpeg_path()
+        if ffmpeg_path:
+            AudioSegment.converter = ffmpeg_path
+    except Exception:
+        pass
+
+_configure_pydub_ffmpeg()
 
 def get_ffmpeg_path():
     """Get FFmpeg path from settings, system PATH, or imageio-ffmpeg."""

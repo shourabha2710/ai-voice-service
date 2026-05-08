@@ -12,7 +12,7 @@ def test_health():
 
 def test_voices():
     print("Testing Voices Endpoint...")
-    response = requests.get(f"{BASE_URL}/api/tts/voices")
+    response = requests.get(f"{BASE_URL}/api/v1/tts/voices")
     print(f"Status: {response.status_code}")
     voices = response.json()
     print(f"Found {len(voices)} voices.")
@@ -29,7 +29,7 @@ def test_generate():
         "rate": "+0%",
         "pitch": "+0Hz"
     }
-    response = requests.post(f"{BASE_URL}/api/tts/", json=payload)
+    response = requests.post(f"{BASE_URL}/api/v1/tts/generate", json=payload)
     print(f"Status: {response.status_code}")
     
     if response.status_code == 200:

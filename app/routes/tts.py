@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, BackgroundTasks
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from app.models.tts import TTSRequest
 from app.models.jobs import LongTTSRequest, JobProgress
 from app.services.tts_service import tts_service
@@ -16,16 +16,21 @@ async def generate_tts(request: TTSRequest):
     Generate an MP3 audio file from text (limit: 5000 chars).
     """
     try:
-        audio_path = await tts_service.generate_speech(request)
+        audio_data = await tts_service.generate_speech(
+            text=request.text,
+            voice=request.voice,
+            rate=request.rate,
+            pitch=request.pitch
+        )
         
         filename = request.download_filename or "speech.mp3"
         if not filename.endswith(".mp3"):
             filename += ".mp3"
             
-        return FileResponse(
-            path=audio_path,
+        return Response(
+            content=audio_data,
             media_type="audio/mpeg",
-            filename=filename
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"TTS Generation failed: {str(e)}")

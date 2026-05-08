@@ -30,9 +30,9 @@ def test_health():
 
 def test_voices():
     """Test the voices endpoint."""
-    print("Testing /api/tts/voices endpoint...")
+    print("Testing /api/v1/tts/voices endpoint...")
     try:
-        resp = requests.get(f"{BASE_URL}/api/tts/voices", timeout=10)
+        resp = requests.get(f"{BASE_URL}/api/v1/tts/voices", timeout=10)
         if resp.status_code == 200:
             voices = resp.json()
             print(f"  PASSED: Found {len(voices)} voices")
@@ -47,13 +47,13 @@ def test_voices():
 
 def test_short_tts():
     """Test short text-to-speech generation."""
-    print("Testing /api/tts/ endpoint (short text)...")
+    print("Testing /api/v1/tts/generate endpoint (short text)...")
     try:
         payload = {
             "text": "Hello, this is a test of the Edge TTS service.",
             "voice": "en-US-GuyNeural"
         }
-        resp = requests.post(f"{BASE_URL}/api/tts/", json=payload, timeout=30)
+        resp = requests.post(f"{BASE_URL}/api/v1/tts/generate", json=payload, timeout=30)
         if resp.status_code == 200:
             print(f"  PASSED: Generated audio ({len(resp.content)} bytes)")
             return True
@@ -67,14 +67,14 @@ def test_short_tts():
 
 def test_long_tts_job():
     """Test long audio generation job."""
-    print("Testing /api/tts/long endpoint...")
+    print("Testing /api/v1/tts/generate-long-audio endpoint...")
     try:
         long_text = "This is a test. " * 500  # ~7500 characters
         payload = {
             "text": long_text,
             "voice": "en-US-GuyNeural"
         }
-        resp = requests.post(f"{BASE_URL}/api/tts/long", json=payload, timeout=10)
+        resp = requests.post(f"{BASE_URL}/api/v1/tts/generate-long-audio", json=payload, timeout=10)
         if resp.status_code != 200:
             print(f"  FAILED: Status {resp.status_code} - {resp.text}")
             return False
@@ -86,7 +86,7 @@ def test_long_tts_job():
         # Poll for completion
         for _ in range(60):  # Wait up to 5 minutes
             time.sleep(5)
-            status_resp = requests.get(f"{BASE_URL}/api/tts/job/{job_id}", timeout=5)
+            status_resp = requests.get(f"{BASE_URL}/api/v1/tts/job/{job_id}", timeout=5)
             if status_resp.status_code == 200:
                 job = status_resp.json()
                 status = job.get("status")
@@ -95,11 +95,11 @@ def test_long_tts_job():
                 if status == "completed":
                     print(f"  PASSED: Job completed successfully")
                     # Try to download
-                    dl_resp = requests.get(f"{BASE_URL}/api/tts/job/{job_id}/download", timeout=10)
+                    dl_resp = requests.get(f"{BASE_URL}/api/v1/tts/job/{job_id}/download", timeout=10)
                     if dl_resp.status_code == 200:
                         print(f"  Download: PASSED ({len(dl_resp.content)} bytes)")
                     # Cleanup
-                    requests.delete(f"{BASE_URL}/api/tts/job/{job_id}")
+                    requests.delete(f"{BASE_URL}/api/v1/tts/job/{job_id}")
                     return True
                 elif status == "failed":
                     print(f"  FAILED: Job failed - {job.get('error')}")
