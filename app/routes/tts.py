@@ -14,6 +14,7 @@ router = APIRouter(prefix="/api/v1/tts", tags=["TTS"])
 async def generate_tts(request: TTSRequest):
     """
     Generate an MP3 audio file from text (limit: 5000 chars).
+    Now automatically persists the generation for history recovery.
     """
     try:
         audio_data = await tts_service.generate_speech(
@@ -23,16 +24,39 @@ async def generate_tts(request: TTSRequest):
             pitch=request.pitch
         )
         
-        filename = request.download_filename or "speech.mp3"
+        # Create a persistent record for history restoration
+        from app.models.jobs import JobStatus
+        job_id = job_service.create_job()
+        output_file = f"short_{job_id}.mp3"
+        file_path = settings.audio_path / output_file
+        
+        with open(file_path, "wb") as f:
+            f.write(audio_data)
+            
+        job_service.update_job(
+            job_id,
+            status=JobStatus.COMPLETED,
+            progress=100.0,
+            output_file=output_file,
+            completed_chunks=1,
+            total_chunks=1
+        )
+
+        filename = request.download_filename or f"speech_{job_id}.mp3"
         if not filename.endswith(".mp3"):
             filename += ".mp3"
             
         return Response(
             content=audio_data,
             media_type="audio/mpeg",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'}
+            headers={
+                "Content-Disposition": f'attachment; filename="{filename}"',
+                "X-Job-ID": job_id,
+                "Access-Control-Expose-Headers": "X-Job-ID"
+            }
         )
     except Exception as e:
+        logger.error(f"TTS Generation failed: {str(e)}")
         raise HTTPException(status_code=500, detail=f"TTS Generation failed: {str(e)}")
 
 @router.post("/generate-long-audio", summary="Start Long Audio Generation Job")

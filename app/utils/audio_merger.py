@@ -30,6 +30,8 @@ def merge_audio_chunks(chunk_paths: list, output_path: Path) -> bool:
     """
     try:
         ffmpeg_path = get_ffmpeg_path()
+        logger.info(f"Attempting merge. get_ffmpeg_path() returned: {ffmpeg_path}")
+        
         if not ffmpeg_path:
             logger.error("FFmpeg is not installed or not found in PATH")
             return False

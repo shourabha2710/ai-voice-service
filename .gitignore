@@ -1,48 +1,158 @@
-# Python
+# =========================================
+# PYTHON / FASTAPI BACKEND
+# =========================================
+
 __pycache__/
 *.py[cod]
 *.pyo
 *.pyd
 *.so
+*.pyc
 
-# Virtual Env
+# Virtual Environment
 venv/
 .env
+.env.*
+.python-version
 
 # Logs
 logs/
 *.log
 
-# Audio Files
-generated_audio/
-temp_chunks/
-
-# IDE
-.vscode/
-.idea/
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Pytest
+# Pytest / Coverage
 .pytest_cache/
-
-# Coverage
 .coverage
 htmlcov/
+.mypy_cache/
+.ruff_cache/
 
-# Docker
-*.pid
-
-# FFmpeg temp
-*.tmp
-
-# Build
-dist/
+# Build / Packaging
 build/
+dist/
 *.egg-info/
+.eggs/
 
-# FFmpeg
+# Temporary Files
+*.tmp
+*.temp
+*.bak
+
+# =========================================
+# GENERATED AUDIO / MEDIA
+# =========================================
+
+generated_audio/
+temp_chunks/
+downloads/
+uploads/
+audio_cache/
+preview_cache/
+
+# =========================================
+# FFMPEG
+# =========================================
+
 ffmpeg/
 ffmpeg.zip
+
+# =========================================
+# REACT / VITE FRONTEND
+# =========================================
+
+# Node Modules
+node_modules/
+
+# Vite
+.vite/
+vite.svg
+
+# Frontend Build
+frontend/dist/
+frontend/build/
+dist/
+
+# Frontend Environment Files
+frontend/.env
+frontend/.env.*
+*.local
+
+# Frontend Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Package Managers
+.pnpm-store/
+.npm/
+.yarn/
+
+# =========================================
+# TYPESCRIPT
+# =========================================
+
+*.tsbuildinfo
+
+# =========================================
+# IDE / EDITORS
+# =========================================
+
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# =========================================
+# OPERATING SYSTEM
+# =========================================
+
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================================
+# DOCKER
+# =========================================
+
+*.pid
+docker-compose.override.yml
+
+# =========================================
+# CACHE
+# =========================================
+
+.cache/
+tmp/
+temp/
+
+# =========================================
+# DATABASES
+# =========================================
+
+*.sqlite3
+*.db
+
+# =========================================
+# TEST OUTPUTS
+# =========================================
+
+test_output.mp3
+coverage/
+
+# =========================================
+# OPTIONAL DEPLOYMENT FILES
+# =========================================
+
+.vercel/
+.netlify/
+.render/
+
+# =========================================
+# MAC / LINUX HIDDEN FILES
+# =========================================
+
+.AppleDouble
+.LSOverride

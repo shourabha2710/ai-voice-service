@@ -1,0 +1,809 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VoxForge — AI Text to Speech</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700;14..32,800&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#07070d;
+  --bg-card:#0d0d1a;
+  --bg-elevated:#12121f;
+  --border:rgba(255,255,255,0.06);
+  --border-hover:rgba(255,255,255,0.12);
+  --text:#e8e8f0;
+  --text-secondary:#8888a0;
+  --text-muted:#555570;
+  --accent:#7c5cff;
+  --accent-soft:#a78bfa;
+  --accent-glow:rgba(124,92,255,0.3);
+  --blue:#3b82f6;
+  --teal:#06b6d4;
+  --gradient-1:linear-gradient(135deg,#7c5cff,#3b82f6);
+  --gradient-2:linear-gradient(135deg,#7c5cff,#06b6d4);
+  --gradient-card:linear-gradient(145deg,rgba(124,92,255,0.06),rgba(6,182,212,0.04));
+  --radius:24px;
+  --radius-sm:16px;
+  --radius-xs:12px;
+  --shadow-card:0 8px 40px rgba(0,0,0,0.4),0 2px 8px rgba(0,0,0,0.2);
+  --font:'Inter',-apple-system,system-ui,sans-serif;
+}
+html{scroll-behavior:smooth}
+body{
+  font-family:var(--font);
+  background:var(--bg);
+  color:var(--text);
+  min-height:100vh;
+  overflow-x:hidden;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+::selection{background:rgba(124,92,255,0.3);color:#fff}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,0.08);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,0.15)}
+
+.bg-container{
+  position:fixed;inset:0;z-index:0;overflow:hidden;pointer-events:none;
+}
+.bg-grid{
+  position:absolute;inset:0;
+  background-image:linear-gradient(rgba(255,255,255,0.02) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,0.02) 1px,transparent 1px);
+  background-size:64px 64px;
+}
+.glow-orb{
+  position:absolute;border-radius:50%;filter:blur(80px);opacity:0.4;
+  animation:orbFloat 20s ease-in-out infinite;
+}
+.glow-orb:nth-child(1){width:600px;height:600px;background:radial-gradient(circle,rgba(124,92,255,0.25),transparent 70%);top:-15%;left:-10%;animation-delay:0s}
+.glow-orb:nth-child(2){width:500px;height:500px;background:radial-gradient(circle,rgba(6,182,212,0.18),transparent 70%);bottom:-15%;right:-10%;animation-delay:-7s}
+.glow-orb:nth-child(3){width:400px;height:400px;background:radial-gradient(circle,rgba(59,130,246,0.15),transparent 70%);top:40%;left:50%;animation-delay:-14s}
+@keyframes orbFloat{
+  0%,100%{transform:translate(0,0) scale(1)}
+  25%{transform:translate(60px,-40px) scale(1.05)}
+  50%{transform:translate(-30px,60px) scale(0.95)}
+  75%{transform:translate(40px,30px) scale(1.02)}
+}
+
+.noise{
+  position:fixed;inset:0;z-index:1;pointer-events:none;opacity:0.015;
+  background-image:url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)'/%3E%3C/svg%3E");
+  background-repeat:repeat;background-size:256px 256px;
+}
+
+.app-wrapper{position:relative;z-index:2}
+.container{max-width:1200px;margin:0 auto;padding:0 24px}
+
+.navbar{
+  position:sticky;top:0;z-index:100;
+  backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);
+  background:rgba(7,7,13,0.7);
+  border-bottom:1px solid var(--border);
+  padding:16px 0;
+}
+.navbar .container{display:flex;align-items:center;justify-content:space-between}
+.logo{
+  display:flex;align-items:center;gap:12px;
+  font-size:20px;font-weight:700;color:var(--text);
+  text-decoration:none;letter-spacing:-0.02em;
+}
+.logo-icon{
+  width:36px;height:36px;border-radius:10px;
+  background:var(--gradient-1);
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;font-weight:700;color:#fff;
+  box-shadow:0 0 20px var(--accent-glow);
+}
+.nav-links{display:flex;align-items:center;gap:8px}
+.nav-links a{
+  color:var(--text-secondary);text-decoration:none;
+  font-size:14px;font-weight:500;padding:8px 16px;
+  border-radius:var(--radius-xs);transition:all 0.2s;
+}
+.nav-links a:hover{color:var(--text);background:rgba(255,255,255,0.04)}
+.api-link{
+  display:flex;align-items:center;gap:6px;
+  padding:8px 16px;border-radius:var(--radius-xs);
+  border:1px solid var(--border);color:var(--text-secondary);
+  font-size:13px;font-weight:500;text-decoration:none;
+  transition:all 0.2s;
+}
+.api-link:hover{border-color:var(--border-hover);color:var(--text);background:rgba(255,255,255,0.04)}
+
+.hero{
+  padding:100px 0 60px;text-align:center;position:relative;
+}
+.hero-badge{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:6px 16px;border-radius:100px;
+  background:rgba(124,92,255,0.1);border:1px solid rgba(124,92,255,0.2);
+  color:var(--accent-soft);font-size:13px;font-weight:500;
+  margin-bottom:24px;animation:fadeInUp 0.6s ease-out;
+}
+.hero h1{
+  font-size:clamp(2.5rem,6vw,4.5rem);font-weight:800;
+  letter-spacing:-0.03em;line-height:1.1;margin-bottom:20px;
+  animation:fadeInUp 0.6s ease-out 0.1s both;
+}
+.hero h1 span{background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.hero p{
+  font-size:clamp(1rem,2vw,1.2rem);color:var(--text-secondary);
+  max-width:560px;margin:0 auto 32px;line-height:1.7;
+  animation:fadeInUp 0.6s ease-out 0.2s both;
+}
+.hero-cta{
+  display:inline-flex;align-items:center;gap:8px;
+  padding:14px 32px;border-radius:var(--radius-xs);
+  background:var(--gradient-1);color:#fff;font-size:15px;font-weight:600;
+  border:none;cursor:pointer;text-decoration:none;
+  box-shadow:0 0 30px var(--accent-glow);transition:all 0.3s;
+  animation:fadeInUp 0.6s ease-out 0.3s both;
+}
+.hero-cta:hover{transform:translateY(-2px);box-shadow:0 0 50px var(--accent-glow)}
+
+.tts-section{padding:0 0 100px}
+.tts-card{
+  max-width:800px;margin:0 auto;
+  background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius);padding:40px;
+  box-shadow:var(--shadow-card);
+  position:relative;overflow:hidden;
+  animation:fadeInUp 0.6s ease-out 0.4s both;
+}
+.tts-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  opacity:0.5;
+}
+.tts-card-header{margin-bottom:28px}
+.tts-card-header h2{
+  font-size:20px;font-weight:700;letter-spacing:-0.02em;
+  margin-bottom:4px;display:flex;align-items:center;gap:10px;
+}
+.tts-card-header p{color:var(--text-secondary);font-size:14px}
+
+.form-group{margin-bottom:20px}
+.form-label{
+  display:block;font-size:13px;font-weight:600;color:var(--text-secondary);
+  margin-bottom:8px;letter-spacing:0.01em;
+}
+.text-input-wrapper{position:relative}
+.text-input{
+  width:100%;min-height:140px;padding:16px 20px;
+  background:var(--bg-elevated);border:1px solid var(--border);
+  border-radius:var(--radius-sm);color:var(--text);
+  font-family:var(--font);font-size:15px;line-height:1.7;
+  resize:vertical;transition:all 0.2s;outline:none;
+}
+.text-input:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,0.12)}
+.text-input::placeholder{color:var(--text-muted)}
+.char-count{
+  position:absolute;bottom:12px;right:16px;
+  font-size:12px;color:var(--text-muted);
+  background:var(--bg-elevated);padding:2px 10px;
+  border-radius:6px;
+}
+
+.controls-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+.select-wrapper{position:relative}
+.select-wrapper select{
+  width:100%;padding:12px 16px;padding-right:40px;
+  background:var(--bg-elevated);border:1px solid var(--border);
+  border-radius:var(--radius-xs);color:var(--text);
+  font-family:var(--font);font-size:14px;font-weight:500;
+  appearance:none;cursor:pointer;transition:all 0.2s;outline:none;
+}
+.select-wrapper select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(124,92,255,0.12)}
+.select-wrapper::after{
+  content:'';position:absolute;top:50%;right:14px;transform:translateY(-50%);
+  width:10px;height:10px;
+  border-right:2px solid var(--text-muted);border-bottom:2px solid var(--text-muted);
+  rotate:45deg;pointer-events:none;margin-top:-3px;
+}
+
+.slider-header{display:flex;justify-content:space-between;margin-bottom:8px}
+.slider-header label{font-size:13px;font-weight:500;color:var(--text-secondary)}
+.slider-value{font-size:13px;font-weight:600;color:var(--accent-soft);min-width:44px;text-align:right}
+input[type="range"]{
+  width:100%;height:4px;-webkit-appearance:none;appearance:none;
+  background:var(--bg-elevated);border-radius:2px;outline:none;
+  border:1px solid var(--border);cursor:pointer;
+}
+input[type="range"]::-webkit-slider-thumb{
+  -webkit-appearance:none;width:16px;height:16px;border-radius:50%;
+  background:var(--gradient-1);cursor:pointer;
+  box-shadow:0 0 12px var(--accent-glow);transition:all 0.2s;
+}
+input[type="range"]::-webkit-slider-thumb:hover{transform:scale(1.15)}
+
+.voice-preview{
+  display:flex;align-items:center;gap:12px;
+  padding:12px 16px;background:var(--bg-elevated);
+  border-radius:var(--radius-xs);margin-bottom:20px;
+  border:1px solid var(--border);
+}
+.voice-preview-dot{
+  width:8px;height:8px;border-radius:50%;background:var(--accent);
+  animation:pulse 2s infinite;
+}
+.voice-preview-text{font-size:13px;color:var(--text-secondary);flex:1}
+@keyframes pulse{0%,100%{opacity:0.4}50%{opacity:1}}
+
+.generate-btn{
+  width:100%;padding:16px 24px;border:none;border-radius:var(--radius-sm);
+  background:var(--gradient-1);color:#fff;
+  font-family:var(--font);font-size:16px;font-weight:600;
+  cursor:pointer;transition:all 0.3s;position:relative;overflow:hidden;
+  box-shadow:0 0 30px var(--accent-glow);
+  display:flex;align-items:center;justify-content:center;gap:10px;
+}
+.generate-btn:hover:not(:disabled){
+  transform:translateY(-2px);
+  box-shadow:0 0 50px var(--accent-glow);
+}
+.generate-btn:active:not(:disabled){transform:translateY(0)}
+.generate-btn:disabled{opacity:0.5;cursor:not-allowed;transform:none}
+.generate-btn .btn-spinner{
+  width:20px;height:20px;border:2px solid rgba(255,255,255,0.3);
+  border-top-color:#fff;border-radius:50%;animation:spin 0.7s linear infinite;
+  display:none;
+}
+.generate-btn.loading .btn-spinner{display:block}
+.generate-btn.loading .btn-text{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+.audio-player{
+  margin-top:24px;padding:24px;background:var(--bg-elevated);
+  border-radius:var(--radius-sm);border:1px solid var(--border);
+  display:none;animation:slideUp 0.4s ease-out;
+}
+.audio-player.visible{display:block}
+.audio-player-header{
+  display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;
+}
+.audio-player-header h3{font-size:15px;font-weight:600;display:flex;align-items:center;gap:8px}
+.audio-player-header .status-badge{
+  font-size:11px;font-weight:600;padding:4px 12px;border-radius:100px;
+  text-transform:uppercase;letter-spacing:0.05em;
+}
+.status-badge.ready{background:rgba(6,182,212,0.12);color:var(--teal);border:1px solid rgba(6,182,212,0.2)}
+.status-badge.generating{background:rgba(124,92,255,0.12);color:var(--accent-soft);border:1px solid rgba(124,92,255,0.2)}
+audio{width:100%;height:44px;border-radius:var(--radius-xs);margin-bottom:12px}
+.download-btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:10px 20px;border-radius:var(--radius-xs);
+  background:rgba(124,92,255,0.1);border:1px solid rgba(124,92,255,0.2);
+  color:var(--accent-soft);font-size:13px;font-weight:600;
+  cursor:pointer;text-decoration:none;transition:all 0.2s;
+}
+.download-btn:hover{background:rgba(124,92,255,0.18);border-color:rgba(124,92,255,0.35)}
+
+.job-progress{margin-top:20px;display:none;animation:slideUp 0.4s ease-out}
+.job-progress.visible{display:block}
+.progress-bar-track{
+  width:100%;height:6px;background:var(--bg-elevated);
+  border-radius:3px;overflow:hidden;border:1px solid var(--border);
+}
+.progress-bar-fill{
+  height:100%;background:var(--gradient-1);border-radius:3px;
+  transition:width 0.5s ease-out;width:0%;
+}
+.progress-info{
+  display:flex;justify-content:space-between;margin-top:8px;
+  font-size:12px;color:var(--text-secondary);
+}
+
+.features-section{padding:80px 0}
+.features-section h2{
+  text-align:center;font-size:28px;font-weight:700;
+  letter-spacing:-0.02em;margin-bottom:48px;
+}
+.features-grid{
+  display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;
+}
+.feature-card{
+  padding:28px;background:var(--bg-card);border:1px solid var(--border);
+  border-radius:var(--radius);transition:all 0.3s;
+  position:relative;overflow:hidden;
+}
+.feature-card:hover{
+  border-color:rgba(124,92,255,0.2);transform:translateY(-4px);
+  box-shadow:0 12px 40px rgba(124,92,255,0.08);
+}
+.feature-card::before{
+  content:'';position:absolute;top:-1px;left:25%;right:25%;height:1px;
+  background:linear-gradient(90deg,transparent,var(--accent),transparent);
+  opacity:0;transition:opacity 0.3s;
+}
+.feature-card:hover::before{opacity:0.6}
+.feature-icon{
+  width:44px;height:44px;border-radius:12px;
+  display:flex;align-items:center;justify-content:center;
+  font-size:20px;margin-bottom:16px;
+}
+.feature-card h3{font-size:16px;font-weight:600;margin-bottom:8px}
+.feature-card p{font-size:14px;color:var(--text-secondary);line-height:1.7}
+
+.footer{
+  border-top:1px solid var(--border);padding:24px 0;
+  text-align:center;font-size:13px;color:var(--text-muted);
+}
+
+@keyframes fadeInUp{
+  from{opacity:0;transform:translateY(20px)}
+  to{opacity:1;transform:translateY(0)}
+}
+@keyframes slideUp{
+  from{opacity:0;transform:translateY(10px)}
+  to{opacity:1;transform:translateY(0)}
+}
+
+.toast{
+  position:fixed;bottom:24px;right:24px;z-index:999;
+  padding:14px 20px;border-radius:var(--radius-xs);
+  background:var(--bg-elevated);border:1px solid var(--border);
+  box-shadow:0 8px 32px rgba(0,0,0,0.5);
+  font-size:14px;font-weight:500;color:var(--text);
+  backdrop-filter:blur(12px);
+  transform:translateY(100px);opacity:0;transition:all 0.4s ease-out;
+  pointer-events:none;
+}
+.toast.visible{transform:translateY(0);opacity:1}
+.toast.error{border-color:rgba(239,68,68,0.3)}
+.toast.success{border-color:rgba(6,182,212,0.3)}
+
+/* ── Long Audio Toggle ── */
+.mode-toggle{
+  display:flex;gap:4px;background:var(--bg-elevated);padding:4px;
+  border-radius:var(--radius-xs);margin-bottom:24px;border:1px solid var(--border);
+}
+.mode-btn{
+  flex:1;padding:10px 16px;font-size:13px;font-weight:500;
+  color:var(--text-secondary);background:transparent;border:none;
+  border-radius:8px;cursor:pointer;transition:all 0.2s;font-family:var(--font);
+}
+.mode-btn.active{background:var(--gradient-1);color:#fff;box-shadow:0 2px 12px var(--accent-glow)}
+.mode-btn:not(.active):hover{color:var(--text);background:rgba(255,255,255,0.04)}
+
+@media(max-width:768px){
+  .container{padding:0 16px}
+  .hero{padding:60px 0 40px}
+  .tts-card{padding:24px;border-radius:var(--radius-sm)}
+  .controls-row{grid-template-columns:1fr}
+  .features-grid{grid-template-columns:1fr}
+  .nav-links .nav-link-text{display:none}
+}
+@media(max-width:480px){
+  .hero h1{font-size:2rem}
+  .tts-card{padding:20px}
+  .text-input{min-height:120px}
+}
+</style>
+</head>
+<body>
+
+<div class="bg-container">
+  <div class="bg-grid"></div>
+  <div class="glow-orb"></div>
+  <div class="glow-orb"></div>
+  <div class="glow-orb"></div>
+</div>
+<div class="noise"></div>
+
+<div class="app-wrapper">
+
+  <!-- Navbar -->
+  <nav class="navbar">
+    <div class="container">
+      <a href="#" class="logo">
+        <div class="logo-icon">V</div>
+        VoxForge
+      </a>
+      <div class="nav-links">
+        <a href="#generate" class="nav-link-text">Generate</a>
+        <a href="#features" class="nav-link-text">Features</a>
+        <a href="/docs" target="_blank" class="api-link">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          API
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="hero-badge">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+        AI-Powered Neural TTS
+      </div>
+      <h1>Text to Speech,<br>Powered by <span>AI</span></h1>
+      <p>Convert your text into natural-sounding speech using advanced neural networks. Premium voices with real-time generation.</p>
+      <a href="#generate" class="hero-cta">
+        Start Generating
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+      </a>
+    </div>
+  </section>
+
+  <!-- TTS Generator -->
+  <section class="tts-section" id="generate">
+    <div class="container">
+      <div class="tts-card">
+        <div class="tts-card-header">
+          <h2>
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+            Voice Generator
+          </h2>
+          <p>Enter your text, choose a voice, and generate premium audio instantly.</p>
+        </div>
+
+        <!-- Mode Toggle -->
+        <div class="mode-toggle">
+          <button class="mode-btn active" data-mode="short" onclick="setMode('short')">Short Audio</button>
+          <button class="mode-btn" data-mode="long" onclick="setMode('long')">Long Audio</button>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="textInput">Text</label>
+          <div class="text-input-wrapper">
+            <textarea class="text-input" id="textInput" placeholder="Type or paste your text here..." maxlength="5000" rows="5"></textarea>
+            <div class="char-count"><span id="charCount">0</span> / 5000</div>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" for="voiceSelect">Voice</label>
+            <div class="select-wrapper">
+              <select id="voiceSelect"></select>
+            </div>
+          </div>
+          <div class="form-group" style="margin-bottom:0">
+            <label class="form-label" for="genderSelect">Gender</label>
+            <div class="select-wrapper">
+              <select id="genderSelect">
+                <option value="all">All Voices</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        <div class="controls-row">
+          <div class="slider-group">
+            <div class="slider-header">
+              <label>Speed</label>
+              <span class="slider-value" id="rateDisplay">+0%</span>
+            </div>
+            <input type="range" id="rateSlider" min="-50" max="50" value="0">
+          </div>
+          <div class="slider-group">
+            <div class="slider-header">
+              <label>Pitch</label>
+              <span class="slider-value" id="pitchDisplay">+0Hz</span>
+            </div>
+            <input type="range" id="pitchSlider" min="-20" max="20" value="0">
+          </div>
+        </div>
+
+        <div class="voice-preview">
+          <div class="voice-preview-dot"></div>
+          <div class="voice-preview-text" id="voicePreview">Select a voice to preview details</div>
+        </div>
+
+        <button class="generate-btn" id="generateBtn" onclick="generateTTS()">
+          <span class="btn-text">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+            Generate Speech
+          </span>
+          <span class="btn-spinner"></span>
+        </button>
+
+        <div class="audio-player" id="audioPlayer">
+          <div class="audio-player-header">
+            <h3>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              Generated Audio
+            </h3>
+            <span class="status-badge ready">Ready</span>
+          </div>
+          <audio id="audioElement" controls></audio>
+          <div style="display:flex;gap:10px;flex-wrap:wrap">
+            <a class="download-btn" id="downloadBtn" download="speech.mp3">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              Download
+            </a>
+          </div>
+        </div>
+
+        <div class="job-progress" id="jobProgress">
+          <div class="progress-bar-track">
+            <div class="progress-bar-fill" id="progressFill"></div>
+          </div>
+          <div class="progress-info">
+            <span id="progressText">Processing...</span>
+            <span id="progressPercent">0%</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="features-section" id="features">
+    <div class="container">
+      <h2>Built for Voice</h2>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(124,92,255,0.12)">🎭</div>
+          <h3>400+ Neural Voices</h3>
+          <p>Choose from a vast library of lifelike voices across multiple languages and accents. Find the perfect voice for your content.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(6,182,212,0.12)">⚡</div>
+          <h3>Real-time Generation</h3>
+          <p>Generate high-quality speech in seconds. Fine-tune speed and pitch to match your exact requirements.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon" style="background:rgba(59,130,246,0.12)">📄</div>
+          <h3>Long-form Support</h3>
+          <p>Process documents up to 50,000 characters with automatic chunking and seamless merging for extended content.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      VoxForge &mdash; AI Text to Speech &middot; Powered by edge-tts &amp; FastAPI
+    </div>
+  </footer>
+
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const API_BASE = '/api/v1/tts';
+const MAX_SHORT = 5000;
+let voices = [];
+let currentAudioUrl = null;
+let pollTimer = null;
+let currentMode = 'short';
+
+const textInput = document.getElementById('textInput');
+const charCount = document.getElementById('charCount');
+const voiceSelect = document.getElementById('voiceSelect');
+const genderSelect = document.getElementById('genderSelect');
+const rateSlider = document.getElementById('rateSlider');
+const pitchSlider = document.getElementById('pitchSlider');
+const rateDisplay = document.getElementById('rateDisplay');
+const pitchDisplay = document.getElementById('pitchDisplay');
+const voicePreview = document.getElementById('voicePreview');
+const generateBtn = document.getElementById('generateBtn');
+const audioPlayer = document.getElementById('audioPlayer');
+const audioElement = document.getElementById('audioElement');
+const downloadBtn = document.getElementById('downloadBtn');
+const jobProgress = document.getElementById('jobProgress');
+const progressFill = document.getElementById('progressFill');
+const progressText = document.getElementById('progressText');
+const progressPercent = document.getElementById('progressPercent');
+const toast = document.getElementById('toast');
+
+textInput.addEventListener('input', updateCharCount);
+rateSlider.addEventListener('input', () => {
+  const v = parseInt(rateSlider.value);
+  rateDisplay.textContent = v >= 0 ? `+${v}%` : `${v}%`;
+});
+pitchSlider.addEventListener('input', () => {
+  const v = parseInt(pitchSlider.value);
+  pitchDisplay.textContent = v >= 0 ? `+${v}Hz` : `${v}Hz`;
+});
+genderSelect.addEventListener('change', filterVoices);
+voiceSelect.addEventListener('change', updateVoicePreview);
+
+textInput.addEventListener('keydown', e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+    e.preventDefault();
+    generateTTS();
+  }
+});
+
+function setMode(mode) {
+  currentMode = mode;
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  const max = mode === 'short' ? MAX_SHORT : 50000;
+  textInput.setAttribute('maxlength', max);
+  updateCharCount();
+  const label = mode === 'short' ? 'Generate Speech' : 'Generate Long Audio';
+  generateBtn.querySelector('.btn-text').innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg> ${label}`;
+}
+
+function updateCharCount() {
+  const len = textInput.value.length;
+  const max = currentMode === 'short' ? MAX_SHORT : 50000;
+  charCount.textContent = `${len} / ${max}`;
+}
+
+async function loadVoices() {
+  try {
+    const res = await fetch(`${API_BASE}/voices`);
+    if (!res.ok) throw new Error('Failed to load voices');
+    voices = await res.json();
+    voices.sort((a, b) => a.Locale.localeCompare(b.Locale));
+    filterVoices();
+  } catch (e) {
+    showToast('Could not load voices. Is the server running?', 'error');
+    voiceSelect.innerHTML = '<option value="en-US-JennyNeural">Jenny (English US)</option>';
+  }
+}
+
+function filterVoices() {
+  const gender = genderSelect.value;
+  const filtered = gender === 'all' ? voices : voices.filter(v => v.Gender === gender);
+  voiceSelect.innerHTML = filtered.map(v => {
+    const flag = v.Locale.startsWith('en') ? '🇺🇸' : v.Locale.startsWith('es') ? '🇪🇸' :
+                 v.Locale.startsWith('fr') ? '🇫🇷' : v.Locale.startsWith('de') ? '🇩🇪' :
+                 v.Locale.startsWith('pt') ? '🇧🇷' : v.Locale.startsWith('it') ? '🇮🇹' :
+                 v.Locale.startsWith('ja') ? '🇯🇵' : v.Locale.startsWith('ko') ? '🇰🇷' :
+                 v.Locale.startsWith('zh') ? '🇨🇳' : v.Locale.startsWith('ar') ? '🇸🇦' :
+                 v.Locale.startsWith('ru') ? '🇷🇺' : v.Locale.startsWith('hi') ? '🇮🇳' : '🌐';
+    const name = v.FriendlyName || v.ShortName;
+    return `<option value="${v.ShortName}">${flag} ${name}</option>`;
+  }).join('');
+  if (voices.length > 0) updateVoicePreview();
+}
+
+function updateVoicePreview() {
+  const selected = voiceSelect.value;
+  const v = voices.find(x => x.ShortName === selected);
+  if (v) {
+    voicePreview.innerHTML = `${v.FriendlyName || v.ShortName} &middot; ${v.Locale} &middot; ${v.Gender}`;
+  } else if (selected) {
+    voicePreview.textContent = selected;
+  }
+}
+
+async function generateTTS() {
+  const text = textInput.value.trim();
+  if (!text) {
+    showToast('Please enter some text to convert.', 'error');
+    textInput.focus();
+    return;
+  }
+
+  if (currentMode === 'short' && text.length > MAX_SHORT) {
+    showToast('Short mode supports up to 5,000 characters. Switch to Long Audio.', 'error');
+    return;
+  }
+
+  const voice = voiceSelect.value;
+  const rate = rateDisplay.textContent;
+  const pitch = pitchDisplay.textContent;
+
+  generateBtn.classList.add('loading');
+  generateBtn.disabled = true;
+  audioPlayer.classList.remove('visible');
+  jobProgress.classList.remove('visible');
+
+  try {
+    if (currentMode === 'long' || text.length > MAX_SHORT) {
+      await generateLongAudio(text, voice, rate, pitch);
+    } else {
+      await generateShortAudio(text, voice, rate, pitch);
+    }
+  } catch (e) {
+    showToast(e.message || 'Generation failed. Is the server running?', 'error');
+  } finally {
+    generateBtn.classList.remove('loading');
+    generateBtn.disabled = false;
+  }
+}
+
+async function generateShortAudio(text, voice, rate, pitch) {
+  const res = await fetch(`${API_BASE}/generate`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice, rate, pitch })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.detail || 'Generation failed');
+  }
+
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+  currentAudioUrl = url;
+
+  audioElement.src = url;
+  downloadBtn.href = url;
+  audioPlayer.classList.add('visible');
+  audioElement.play().catch(()=>{});
+}
+
+async function generateLongAudio(text, voice, rate, pitch) {
+  jobProgress.classList.add('visible');
+  progressFill.style.width = '0%';
+  progressText.textContent = 'Starting job...';
+  progressPercent.textContent = '0%';
+
+  const res = await fetch(`${API_BASE}/generate-long-audio`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text, voice, rate, pitch })
+  });
+
+  if (!res.ok) {
+    const err = await res.json().catch(()=>({}));
+    throw new Error(err.detail || 'Failed to start long audio job');
+  }
+
+  const { job_id } = await res.json();
+  await pollJob(job_id);
+}
+
+function pollJob(jobId) {
+  return new Promise((resolve, reject) => {
+    pollTimer = setInterval(async () => {
+      try {
+        const res = await fetch(`${API_BASE}/job/${jobId}`);
+        if (!res.ok) { clearInterval(pollTimer); reject(new Error('Failed to check job status')); return; }
+        const job = await res.json();
+        const pct = job.progress || 0;
+        progressFill.style.width = `${pct}%`;
+        progressPercent.textContent = `${pct}%`;
+
+        if (job.status === 'completed') {
+          clearInterval(pollTimer);
+          progressText.textContent = 'Complete! Loading audio...';
+          const dlRes = await fetch(`${API_BASE}/job/${jobId}/download`);
+          if (!dlRes.ok) { reject(new Error('Failed to download completed audio')); return; }
+          const blob = await dlRes.blob();
+          const url = URL.createObjectURL(blob);
+          if (currentAudioUrl) URL.revokeObjectURL(currentAudioUrl);
+          currentAudioUrl = url;
+          audioElement.src = url;
+          downloadBtn.href = url;
+          downloadBtn.download = `long_speech_${jobId}.mp3`;
+          audioPlayer.classList.add('visible');
+          jobProgress.classList.remove('visible');
+          audioElement.play().catch(()=>{});
+          resolve();
+        } else if (job.status === 'failed') {
+          clearInterval(pollTimer);
+          reject(new Error(job.error || 'Job failed'));
+        } else {
+          const done = job.completed_chunks || 0;
+          const total = job.total_chunks || 1;
+          progressText.textContent = `Processing chunk ${done} of ${total}...`;
+        }
+      } catch (e) {
+        clearInterval(pollTimer);
+        reject(e);
+      }
+    }, 1500);
+  });
+}
+
+function showToast(msg, type) {
+  toast.textContent = msg;
+  toast.className = `toast ${type || 'success'}`;
+  requestAnimationFrame(() => toast.classList.add('visible'));
+  clearTimeout(toast._timer);
+  toast._timer = setTimeout(() => toast.classList.remove('visible'), 3500);
+}
+
+loadVoices();
+updateCharCount();
+</script>
+</body>
+</html>

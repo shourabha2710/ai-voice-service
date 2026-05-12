@@ -1,0 +1,108 @@
+import { Link, useLocation } from 'react-router-dom'
+import { Volume2, BookOpen, GitBranch, Menu, X } from 'lucide-react'
+import { useState } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+
+const links = [
+  { path: '/', label: 'Home' },
+  { path: '/generator', label: 'Generator' },
+  { path: '/jobs', label: 'Jobs' },
+  { path: '/features', label: 'Features' },
+  { path: '/about', label: 'About' },
+]
+
+export default function Navbar() {
+  const location = useLocation()
+  const [isOpen, setIsOpen] = useState(false)
+
+  return (
+    <nav className="fixed top-0 left-0 right-0 z-40 bg-[#07070d]/80 backdrop-blur-md border-b border-white/[0.06]">
+      <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
+        <Link to="/" className="flex items-center gap-3 no-underline">
+          <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-[#7c5cff] to-[#3b82f6] text-sm font-bold text-white shadow-lg shadow-[#7c5cff]/30">
+            <Volume2 size={16} />
+          </div>
+          <span className="text-lg font-bold tracking-tight text-white">
+            Vox<span className="text-[#a78bfa]">Forge</span>
+          </span>
+        </Link>
+
+        {/* Desktop Links */}
+        <div className="hidden items-center gap-1 md:flex">
+          {links.map((l) => (
+            <Link
+              key={l.path}
+              to={l.path}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                location.pathname === l.path
+                  ? 'bg-white/[0.08] text-white'
+                  : 'text-[#8888a0] hover:bg-white/[0.04] hover:text-white'
+              }`}
+            >
+              {l.label}
+            </Link>
+          ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <div className="hidden items-center gap-2 sm:flex">
+            <a
+              href="http://localhost:8000/api/v1/tts/docs"
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] px-3.5 py-2 text-xs font-medium text-[#8888a0] no-underline transition-all duration-200 hover:border-white/[0.14] hover:text-white hover:bg-white/[0.04]"
+            >
+              <BookOpen size={14} />
+              <span>API</span>
+            </a>
+          </div>
+          
+          <button 
+            onClick={() => setIsOpen(!isOpen)}
+            className="flex items-center justify-center p-2 rounded-lg text-[#8888a0] hover:text-white md:hidden"
+          >
+            {isOpen ? <X size={20} /> : <Menu size={20} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Menu */}
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="md:hidden border-t border-white/[0.06] bg-[#07070d] overflow-hidden"
+          >
+            <div className="flex flex-col p-4 gap-1">
+              {links.map((l) => (
+                <Link
+                  key={l.path}
+                  to={l.path}
+                  onClick={() => setIsOpen(false)}
+                  className={`px-4 py-3 rounded-xl text-sm font-medium transition-all ${
+                    location.pathname === l.path
+                      ? 'bg-[rgba(124,92,255,0.1)] text-[#a78bfa]'
+                      : 'text-[#8888a0] hover:bg-white/[0.04]'
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              ))}
+              <a
+                href="http://localhost:8000/api/v1/tts/docs"
+                target="_blank"
+                rel="noreferrer"
+                className="px-4 py-3 text-sm font-medium text-[#8888a0] flex items-center gap-2"
+              >
+                <BookOpen size={16} />
+                API Documentation
+              </a>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </nav>
+  )
+}

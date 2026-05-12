@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Edge TTS Studio</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{--bg:#07070b;--surface:#0e0e14;--card:#13131a;--border:#1e1e2a;--text:#e4e4ec;--text-secondary:#88889a;--accent:#6c5ce7;--accent-glow:rgba(108,92,231,.35);--gradient-1:linear-gradient(135deg,#6c5ce7,#a29bfe);--gradient-2:linear-gradient(135deg,#00cec9,#81ecec);--gradient-3:linear-gradient(135deg,#fd79a8,#e84393);--radius:1.25rem;--radius-sm:.75rem;--transition:.3s cubic-bezier(.4,0,.2,1)}
+html{font-family:Inter,system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);scroll-behavior:smooth;overflow-x:hidden}
+body{min-height:100vh;display:flex;flex-direction:column;align-items:center}
+::selection{background:var(--accent);color:#fff}
+::-webkit-scrollbar{width:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--text-secondary)}
+.bg-container{position:fixed;inset:0;overflow:hidden;pointer-events:none;z-index:0}
+.bg-grid{position:absolute;inset:0;background-image:linear-gradient(var(--border) 1px,transparent 1px),linear-gradient(90deg,var(--border) 1px,transparent 1px);background-size:60px 60px;opacity:.25}
+.bg-gradient{position:absolute;inset:0;background:radial-gradient(ellipse 50% 50% at 50% 0%,rgba(108,92,231,.08),transparent 70%)}
+.orb{position:absolute;border-radius:50%;filter:blur(80px);opacity:.4;animation:orbFloat 20s ease-in-out infinite}
+.orb-1{width:600px;height:600px;background:var(--accent);top:-200px;left:-100px;animation-delay:0s}
+.orb-2{width:500px;height:500px;background:#00cec9;bottom:-150px;right:-100px;animation-delay:-7s;opacity:.25}
+.orb-3{width:400px;height:400px;background:#e84393;top:40%;left:60%;animation-delay:-14s;opacity:.15}
+@keyframes orbFloat{0%,100%{transform:translate(0,0) scale(1)}25%{transform:translate(60px,-80px) scale(1.1)}50%{transform:translate(-40px,60px) scale(.95)}75%{transform:translate(80px,40px) scale(1.05)}}
+.navbar{position:fixed;top:0;left:0;right:0;z-index:100;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between;background:rgba(7,7,11,.7);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);border-bottom:1px solid var(--border)}
+.nav-logo{display:flex;align-items:center;gap:.625rem;font-size:1.125rem;font-weight:600;letter-spacing:-.02em}
+.nav-logo svg{width:28px;height:28px}
+.nav-logo span{background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.nav-badge{font-size:.6875rem;padding:.2rem .55rem;border-radius:999px;background:var(--gradient-1);color:#fff;font-weight:600;letter-spacing:.02em}
+.nav-links{display:flex;gap:1.5rem;align-items:center}
+.nav-links a{color:var(--text-secondary);text-decoration:none;font-size:.8125rem;font-weight:500;transition:color var(--transition);position:relative}
+.nav-links a::after{content:'';position:absolute;bottom:-4px;left:0;width:0;height:2px;background:var(--gradient-1);border-radius:1px;transition:width var(--transition)}
+.nav-links a:hover{color:var(--text)}
+.nav-links a:hover::after{width:100%}
+.container{position:relative;z-index:1;width:100%;max-width:840px;padding:2rem 1.5rem;margin-top:5rem;margin-bottom:3rem}
+.hero{text-align:center;margin-bottom:2.5rem;animation:fadeUp .8s ease-out}
+.hero h1{font-size:clamp(2rem,5vw,3rem);font-weight:800;letter-spacing:-.03em;line-height:1.15;margin-bottom:.75rem}
+.hero h1 .gradient-text{background:var(--gradient-1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.hero p{font-size:1.0625rem;color:var(--text-secondary);max-width:560px;margin:0 auto;line-height:1.6}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:1.75rem;backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);transition:opacity var(--transition),transform var(--transition)}
+.card:hover{border-color:rgba(108,92,231,.2)}
+.card-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem}
+.card-header label{font-size:.8125rem;font-weight:600;letter-spacing:.01em}
+.card-header .char-count{font-size:.75rem;color:var(--text-secondary);font-weight:500;transition:color var(--transition)}
+.card-header .char-count.warning{color:#fdcb6e}
+.card-header .char-count.danger{color:#e17055}
+.text-input{width:100%;min-height:180px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.9375rem;font-weight:400;line-height:1.65;padding:.875rem 1rem;resize:vertical;transition:border-color var(--transition),box-shadow var(--transition);font-family:inherit}
+.text-input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.text-input::placeholder{color:var(--text-secondary);font-weight:400}
+.controls{display:grid;grid-template-columns:1fr 1fr;gap:1rem;margin-top:1.25rem}
+.control-group{display:flex;flex-direction:column;gap:.375rem}
+.control-group label{font-size:.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em}
+.control-group .value-display{font-size:.8125rem;font-weight:500;color:var(--text);margin-top:2px}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:var(--border);outline:none;margin-top:.25rem}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:16px;height:16px;border-radius:50%;background:var(--gradient-1);cursor:pointer;box-shadow:0 0 12px var(--accent-glow);transition:transform var(--transition),box-shadow var(--transition);border:none}
+input[type=range]::-webkit-slider-thumb:hover{transform:scale(1.15);box-shadow:0 0 20px var(--accent-glow)}
+input[type=range]::-moz-range-thumb{width:16px;height:16px;border-radius:50%;background:var(--gradient-1);cursor:pointer;border:none}
+input[type=range]::-moz-range-track{height:4px;border-radius:2px;background:var(--border)}
+.voice-select-wrap{position:relative;margin-top:1.25rem}
+.voice-select-wrap label{display:block;font-size:.75rem;font-weight:600;color:var(--text-secondary);text-transform:uppercase;letter-spacing:.04em;margin-bottom:.375rem}
+.voice-select{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-sm);color:var(--text);font-size:.875rem;padding:.7rem 1rem;cursor:pointer;transition:border-color var(--transition),box-shadow var(--transition);font-family:inherit;-webkit-appearance:none;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2388889a' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 1rem center;padding-right:2.5rem}
+.voice-select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-glow)}
+.voice-select option{background:var(--surface);color:var(--text)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:.5rem;padding:.75rem 1.75rem;border-radius:var(--radius-sm);font-size:.875rem;font-weight:600;border:none;cursor:pointer;transition:all var(--transition);position:relative;overflow:hidden;text-decoration:none;font-family:inherit;letter-spacing:.01em}
+.btn:active{transform:scale(.97)}
+.btn-primary{background:var(--gradient-1);color:#fff;box-shadow:0 4px 20px var(--accent-glow)}
+.btn-primary:hover{box-shadow:0 6px 30px var(--accent-glow);transform:translateY(-1px)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;box-shadow:none;transform:none}
+.btn-secondary{background:var(--surface);color:var(--text);border:1px solid var(--border)}
+.btn-secondary:hover{background:var(--border);border-color:var(--text-secondary)}
+.btn-ghost{background:transparent;color:var(--text-secondary);padding:.5rem}
+.btn-ghost:hover{color:var(--text);background:rgba(255,255,255,.04)}
+.btn-row{display:flex;gap:.75rem;margin-top:1.25rem;flex-wrap:wrap}
+.btn-long{flex:1;min-width:160px}
+.spinner{width:18px;height:18px;border:2px solid rgba(255,255,255,.2);border-top-color:#fff;border-radius:50%;animation:spin .6s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.audio-section{overflow:hidden;transition:max-height .5s cubic-bezier(.4,0,.2,1),opacity .4s ease,margin .4s ease;max-height:0;opacity:0;margin-top:0}
+.audio-section.visible{max-height:300px;opacity:1;margin-top:1.25rem}
+.audio-player{width:100%;margin-top:.75rem}
+.audio-player audio{width:100%;border-radius:var(--radius-sm);background:var(--surface)}
+.audio-player audio::-webkit-media-controls-panel{background:var(--surface)}
+.audio-player audio::-webkit-media-controls-current-time-display,.audio-player audio::-webkit-media-controls-time-remaining-display{color:var(--text)}
+.job-section{overflow:hidden;transition:max-height .5s cubic-bezier(.4,0,.2,1),opacity .4s ease,margin .4s ease;max-height:0;opacity:0;margin-top:0}
+.job-section.visible{max-height:500px;opacity:1;margin-top:1.25rem}
+.progress-bar-wrap{width:100%;height:6px;background:var(--surface);border-radius:3px;overflow:hidden;margin-top:.75rem}
+.progress-bar-fill{height:100%;background:var(--gradient-1);border-radius:3px;transition:width .4s ease;width:0%}
+.job-status{display:flex;justify-content:space-between;align-items:center;margin-top:.5rem}
+.job-status-text{font-size:.8125rem;color:var(--text-secondary)}
+.job-percent{font-size:.8125rem;font-weight:600}
+.job-download{margin-top:.75rem}
+.toast{position:fixed;bottom:2rem;left:50%;transform:translateX(-50%) translateY(100px);z-index:200;padding:.75rem 1.5rem;border-radius:var(--radius-sm);font-size:.8125rem;font-weight:500;background:var(--card);border:1px solid var(--border);color:var(--text);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px);opacity:0;transition:all .4s cubic-bezier(.4,0,.2,1);pointer-events:none;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.error{border-color:#e17055;color:#e17055}
+.toast.success{border-color:#00b894;color:#00b894}
+.footer{margin-top:auto;padding:1.5rem 2rem;text-align:center;font-size:.75rem;color:var(--text-secondary);border-top:1px solid var(--border);width:100%;position:relative;z-index:1;background:rgba(7,7,11,.5)}
+.footer a{color:var(--accent);text-decoration:none}
+@keyframes fadeUp{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.fade-in{animation:fadeUp .6s ease-out forwards;opacity:0}
+.fade-in-d1{animation-delay:.1s}
+.fade-in-d2{animation-delay:.2s}
+.fade-in-d3{animation-delay:.3s}
+.fade-in-d4{animation-delay:.4s}
+@media(max-width:640px){
+.navbar{padding:.75rem 1rem}
+.nav-links{display:none}
+.container{padding:1rem;margin-top:4rem}
+.card{padding:1.25rem}
+.controls{grid-template-columns:1fr}
+.text-input{min-height:140px;font-size:.875rem}
+.btn-row{flex-direction:column}
+.btn-long{min-width:unset}
+.toast{font-size:.75rem;padding:.6rem 1.2rem;bottom:1rem}
+}
+</style>
+</head>
+<body>
+<div class="bg-container">
+  <div class="bg-grid"></div>
+  <div class="bg-gradient"></div>
+  <div class="orb orb-1"></div>
+  <div class="orb orb-2"></div>
+  <div class="orb orb-3"></div>
+</div>
+<nav class="navbar">
+  <div class="nav-logo">
+    <svg viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <rect width="32" height="32" rx="8" fill="url(#logoGrad)"/>
+      <path d="M10 20V12l6 4-6 4Zm7-4 5-3.5v7L17 16Z" fill="#fff"/>
+      <defs><linearGradient id="logoGrad" x1="0" y1="0" x2="32" y2="32"><stop stop-color="#6c5ce7"/><stop offset="1" stop-color="#a29bfe"/></linearGradient></defs>
+    </svg>
+    <span>Edge TTS Studio</span>
+  </div>
+  <div class="nav-links">
+    <a href="#" onclick="document.querySelector('.text-input').focus();return false">Try it</a>
+    <a href="/docs" target="_blank">API</a>
+    <span class="nav-badge">v1.0</span>
+  </div>
+</nav>
+<div id="toast" class="toast"></div>
+<div class="container">
+  <section class="hero">
+    <h1>Text-to-Speech,<br><span class="gradient-text">Powered by AI</span></h1>
+    <p>Convert your text into natural, lifelike speech using premium neural voices. Fast, free, and seamless.</p>
+  </section>
+  <div class="card fade-in fade-in-d1" style="margin-bottom:1.25rem">
+    <div class="card-header">
+      <label for="textInput">Enter your text</label>
+      <span class="char-count" id="charCount">0 / 5,000</span>
+    </div>
+    <textarea id="textInput" class="text-input" placeholder="Paste or type your text here... The more natural your input, the better the output will sound." maxlength="50000"></textarea>
+    <div class="voice-select-wrap">
+      <label for="voiceSelect">Voice</label>
+      <select id="voiceSelect" class="voice-select">
+        <option value="">Loading voices...</option>
+      </select>
+    </div>
+    <div class="controls">
+      <div class="control-group">
+        <label for="rateRange">Speed</label>
+        <input type="range" id="rateRange" min="-50" max="50" value="0">
+        <span class="value-display" id="rateDisplay">+0%</span>
+      </div>
+      <div class="control-group">
+        <label for="pitchRange">Pitch</label>
+        <input type="range" id="pitchRange" min="-10" max="10" value="0">
+        <span class="value-display" id="pitchDisplay">+0Hz</span>
+      </div>
+    </div>
+    <div class="btn-row">
+      <button id="generateBtn" class="btn btn-primary btn-long">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Generate Speech
+      </button>
+      <button id="longAudioBtn" class="btn btn-secondary btn-long">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="2.18"/><line x1="7" y1="2" x2="7" y2="22"/><line x1="17" y1="2" x2="17" y2="22"/><line x1="2" y1="12" x2="22" y2="12"/></svg>
+        Generate Long Audio
+      </button>
+    </div>
+  </div>
+  <div id="audioSection" class="card audio-section fade-in">
+    <div class="card-header">
+      <label>Generated Audio</label>
+      <button id="downloadBtn" class="btn btn-ghost" title="Download">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+      </button>
+    </div>
+    <div class="audio-player">
+      <audio id="audioPlayer" controls></audio>
+    </div>
+  </div>
+  <div id="jobSection" class="card job-section fade-in">
+    <div class="card-header">
+      <label>Generation Progress</label>
+      <span class="job-percent" id="jobPercent">0%</span>
+    </div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill"></div>
+    </div>
+    <div class="job-status">
+      <span class="job-status-text" id="jobStatusText">Starting...</span>
+      <span id="jobIdDisplay" style="font-size:.6875rem;color:var(--text-secondary)"></span>
+    </div>
+    <div class="job-download" id="jobDownload" style="display:none">
+      <button id="downloadJobBtn" class="btn btn-primary" style="width:100%">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+        Download Long Audio
+      </button>
+    </div>
+  </div>
+</div>
+<footer class="footer">
+  Powered by <a href="https://github.com" target="_blank">edge-tts</a> &middot; Built with FastAPI &middot; Open source
+</footer>
+<script>
+(()=>{
+const API_BASE='/api/v1/tts';let voices=[],currentAudioUrl=null,pollingInterval=null;
+const $=id=>document.getElementById(id);
+const textInput=$('textInput'),charCount=$('charCount'),voiceSelect=$('voiceSelect'),rateRange=$('rateRange'),pitchRange=$('pitchRange'),rateDisplay=$('rateDisplay'),pitchDisplay=$('pitchDisplay'),generateBtn=$('generateBtn'),longAudioBtn=$('longAudioBtn'),audioSection=$('audioSection'),audioPlayer=$('audioPlayer'),downloadBtn=$('downloadBtn'),jobSection=$('jobSection'),progressFill=$('progressFill'),jobPercent=$('jobPercent'),jobStatusText=$('jobStatusText'),jobIdDisplay=$('jobIdDisplay'),jobDownload=$('jobDownload'),downloadJobBtn=$('downloadJobBtn'),toast=$('toast');
+function showToast(msg,type=''){toast.textContent=msg;toast.className='toast '+type;requestAnimationFrame(()=>requestAnimationFrame(()=>toast.classList.add('show')));clearTimeout(toast._hide);toast._hide=setTimeout(()=>toast.classList.remove('show'),3000)}
+function setLoading(btn,loading){if(loading){btn.disabled=true;btn._orig=btn.innerHTML;btn.innerHTML='<span class="spinner"></span> Processing...'}else{btn.disabled=false;if(btn._orig)btn.innerHTML=btn._orig}}
+textInput.addEventListener('input',()=>{const len=textInput.value.length;const max=parseInt(textInput.getAttribute('maxlength'));charCount.textContent=`${len.toLocaleString()} / ${max.toLocaleString()}`;charCount.className='char-count'+(len>max*.85?' warning':'')+(len>max*.95?' danger':'')});
+rateRange.addEventListener('input',()=>{rateDisplay.textContent=(rateRange.value>0?'+':'')+rateRange.value+'%'});
+pitchRange.addEventListener('input',()=>{pitchDisplay.textContent=(pitchRange.value>0?'+':'')+pitchRange.value+'Hz'});
+async function loadVoices(){try{const res=await fetch(API_BASE+'/voices');if(!res.ok)throw Error('Failed to fetch voices');voices=await res.json();voiceSelect.innerHTML='';const grouped={};for(const v of voices){const locale=v.Locale||'Other';if(!grouped[locale])grouped[locale]=[];grouped[locale].push(v)}
+for(const[locale,list]of Object.entries(grouped).sort()){const og=document.createElement('optgroup');og.label=locale;list.sort((a,b)=>a.ShortName.localeCompare(b.ShortName));for(const v of list){const o=document.createElement('option');o.value=v.ShortName;o.textContent=v.FriendlyName||v.ShortName;og.appendChild(o)}
+voiceSelect.appendChild(og)}
+const def=voices.find(v=>v.ShortName==='en-US-GuyNeural'||v.ShortName==='en-US-JennyNeural');if(def)voiceSelect.value=def.ShortName;else if(voices.length)voiceSelect.value=voices[0].ShortName}catch(e){voiceSelect.innerHTML='<option value="">Voices unavailable</option>';console.error(e)}}
+generateBtn.addEventListener('click',async()=>{const text=textInput.value.trim();if(!text){showToast('Please enter some text.','error');return}
+if(text.length>5000){showToast('Short generation is limited to 5,000 characters. Use "Long Audio" for longer text.','error');return}
+const voice=voiceSelect.value,rate=(rateRange.value>0?'+':'')+rateRange.value+'%',pitch=(pitchRange.value>0?'+':'')+pitchRange.value+'Hz';setLoading(generateBtn,!0);audioSection.classList.remove('visible');if(currentAudioUrl){URL.revokeObjectURL(currentAudioUrl);currentAudioUrl=null}
+try{const res=await fetch(API_BASE+'/generate',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,rate,pitch})});if(!res.ok){const err=await res.json().catch(()=>({}));throw Error(err.detail||'Request failed')}
+const blob=await res.blob();currentAudioUrl=URL.createObjectURL(blob);audioPlayer.src=currentAudioUrl;audioSection.classList.add('visible');showToast('Audio generated!','success')}catch(e){showToast(e.message,'error')}finally{setLoading(generateBtn,!1)}});
+downloadBtn.addEventListener('click',()=>{if(audioPlayer.src&&audioPlayer.src.startsWith('blob:')){const a=document.createElement('a');a.href=audioPlayer.src;a.download='speech.mp3';a.click()}});
+longAudioBtn.addEventListener('click',async()=>{const text=textInput.value.trim();if(!text){showToast('Please enter some text.','error');return}
+if(text.length<50){showToast('Long audio requires at least 50 characters.','error');return}
+const voice=voiceSelect.value,rate=(rateRange.value>0?'+':'')+rateRange.value+'%',pitch=(pitchRange.value>0?'+':'')+pitchRange.value+'Hz';setLoading(longAudioBtn,!0);try{const res=await fetch(API_BASE+'/generate-long-audio',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({text,voice,rate,pitch})});if(!res.ok){const err=await res.json().catch(()=>({}));throw Error(err.detail||'Request failed')}
+const data=await res.json();startPolling(data.job_id);showToast('Long audio generation started!','success')}catch(e){showToast(e.message,'error');setLoading(longAudioBtn,!1)}});
+function startPolling(jobId){jobSection.classList.add('visible');jobDownload.style.display='none';progressFill.style.width='0%';jobPercent.textContent='0%';jobStatusText.textContent='Starting...';jobIdDisplay.textContent='ID: '+jobId.slice(0,8)+'...';let cancelled=!1;const poll=async()=>{if(cancelled)return;try{const res=await fetch(API_BASE+'/job/'+jobId);if(!res.ok)throw Error('Job fetch failed');const job=await res.json();const pct=job.progress||0;progressFill.style.width=pct+'%';jobPercent.textContent=pct+'%';const m={pending:'Queued...',processing:'Generating audio chunks...',completed:'Complete!',failed:'Failed'};jobStatusText.textContent=m[job.status]||job.status;if(job.status==='completed'){jobDownload.style.display='block';downloadJobBtn.onclick=()=>{window.open(API_BASE+'/job/'+jobId+'/download','_blank')};setLoading(longAudioBtn,!1);showToast('Long audio ready!','success');return}
+if(job.status==='failed'){setLoading(longAudioBtn,!1);showToast('Failed: '+(job.error||'Unknown'),'error');return}
+pollingInterval=setTimeout(poll,1000)}catch(e){setLoading(longAudioBtn,!1);showToast('Error checking progress','error')}};pollingInterval=setTimeout(poll,1000)}
+loadVoices()})();
+</script>
+</body>
+</html>
