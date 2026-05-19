@@ -6,6 +6,44 @@ const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('access_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (response) => response,
+  async (error) => {
+    if (error.response?.status === 401) {
+      const refreshToken = localStorage.getItem('refresh_token');
+      if (refreshToken) {
+        try {
+          const res = await fetch('/api/v1/auth/refresh', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ refresh_token: refreshToken }),
+          });
+          if (res.ok) {
+            const tokens = await res.json();
+            localStorage.setItem('access_token', tokens.access_token);
+            localStorage.setItem('refresh_token', tokens.refresh_token);
+            error.config.headers.Authorization = `Bearer ${tokens.access_token}`;
+            return api(error.config);
+          }
+        } catch {
+          // refresh failed
+        }
+      }
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('refresh_token');
+    }
+    return Promise.reject(error);
+  }
+);
+
 export interface Voice {
   FriendlyName: string;
   ShortName: string;

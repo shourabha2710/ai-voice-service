@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom'
-import { Volume2, BookOpen, GitBranch, Menu, X, LogIn } from 'lucide-react'
-import { useState, useEffect } from 'react'
+import { Volume2, BookOpen, Menu, X } from 'lucide-react'
+import { useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useAuth } from '../store/AuthContext'
 import LoginModal from './LoginModal'
@@ -13,11 +13,31 @@ const links = [
   { path: '/about', label: 'About' },
 ]
 
+function AvatarImage({ src, alt }: { src: string; alt: string }) {
+  return (
+    <img
+      src={src}
+      alt={alt}
+      className="w-7 h-7 rounded-full object-cover"
+      onError={(e) => {
+        (e.target as HTMLImageElement).style.display = 'none';
+        const parent = (e.target as HTMLImageElement).parentElement;
+        if (parent) {
+          const fallback = document.createElement('div');
+          fallback.className = 'w-7 h-7 rounded-full bg-gradient-to-br from-[#7c5cff] to-[#3b82f6] flex items-center justify-center text-xs font-bold text-white';
+          fallback.textContent = alt.charAt(0).toUpperCase();
+          parent.prepend(fallback);
+        }
+      }}
+    />
+  )
+}
+
 export default function Navbar() {
   const location = useLocation()
   const [isOpen, setIsOpen] = useState(false)
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false)
-  const { user, logout, isLoading } = useAuth()
+  const { user, logout, isLoading, isAuthenticated } = useAuth()
 
   return (
     <>
@@ -32,7 +52,6 @@ export default function Navbar() {
             </span>
           </Link>
 
-          {/* Desktop Links */}
           <div className="hidden items-center gap-1 md:flex">
             {links.map((l) => (
               <Link
@@ -61,13 +80,13 @@ export default function Navbar() {
                 <span>API</span>
               </a>
             </div>
-            
+
             {!isLoading && (
-              user ? (
+              isAuthenticated && user ? (
                 <div className="relative group ml-2">
                   <div className="flex items-center gap-2 cursor-pointer bg-white/[0.04] border border-white/[0.06] rounded-full pl-1 pr-3 py-1 hover:bg-white/[0.08] transition-all">
                     {user.avatar_url ? (
-                      <img src={user.avatar_url} alt={user.full_name} className="w-7 h-7 rounded-full object-cover" />
+                      <AvatarImage src={user.avatar_url} alt={user.full_name} />
                     ) : (
                       <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#7c5cff] to-[#3b82f6] flex items-center justify-center text-xs font-bold text-white">
                         {user.full_name.charAt(0).toUpperCase()}
@@ -83,7 +102,7 @@ export default function Navbar() {
                         <span className="bg-white/10 text-white px-2 py-0.5 rounded text-[10px] font-bold">{user.credits} CR</span>
                       </div>
                     </div>
-                    <button 
+                    <button
                       onClick={() => logout()}
                       className="w-full text-left px-4 py-2 text-sm text-[#f43f5e] hover:bg-white/[0.04] transition-colors"
                     >
@@ -100,8 +119,8 @@ export default function Navbar() {
                 </button>
               )
             )}
-            
-            <button 
+
+            <button
               onClick={() => setIsOpen(!isOpen)}
               className="flex items-center justify-center p-2 rounded-lg text-[#8888a0] hover:text-white md:hidden ml-1"
             >
@@ -110,7 +129,6 @@ export default function Navbar() {
           </div>
         </div>
 
-        {/* Mobile Menu */}
         <AnimatePresence>
           {isOpen && (
             <motion.div
@@ -143,8 +161,8 @@ export default function Navbar() {
                   <BookOpen size={16} />
                   API Documentation
                 </a>
-                
-                {!isLoading && user && (
+
+                {!isLoading && isAuthenticated && user && (
                   <button
                     onClick={() => {
                       logout()
@@ -161,9 +179,9 @@ export default function Navbar() {
         </AnimatePresence>
       </nav>
 
-      <LoginModal 
-        isOpen={isLoginModalOpen} 
-        onClose={() => setIsLoginModalOpen(false)} 
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onClose={() => setIsLoginModalOpen(false)}
       />
     </>
   )

@@ -96,20 +96,31 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=[
+        "http://localhost:5173",
+        "http://localhost:8000",
+        "http://127.0.0.1:5173",
+        "http://127.0.0.1:8000",
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
 
 
 @app.middleware("http")
-async def log_requests(request: Request, call_next):
+async def add_security_headers(request: Request, call_next):
     import time
 
     start_time = time.time()
 
     response = await call_next(request)
+
+    response.headers["Cross-Origin-Opener-Policy"] = "same-origin-allow-popups"
+    response.headers["Cross-Origin-Embedder-Policy"] = "credentialless"
+    response.headers["X-Content-Type-Options"] = "nosniff"
+    response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
 
     process_time = (time.time() - start_time) * 1000
 

@@ -20,8 +20,14 @@ class BaseRepository(Generic[ModelType]):
         )
         return result.scalars().all()
 
-    async def create(self, obj_in: dict) -> ModelType:
-        db_obj = self.model(**obj_in)
+    async def create(self, obj_in: dict | None = None, **kwargs) -> ModelType:
+        """Create a new record.
+
+        Accepts either a dict:  repo.create({"email": "a@b.com"})
+        or keyword arguments:   repo.create(email="a@b.com")
+        """
+        data = obj_in if obj_in is not None else kwargs
+        db_obj = self.model(**data)
         self.db.add(db_obj)
         await self.db.commit()
         await self.db.refresh(db_obj)

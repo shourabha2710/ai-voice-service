@@ -4,8 +4,17 @@ from datetime import datetime
 
 class UserCreate(BaseModel):
     email: EmailStr
-    password: str = Field(..., min_length=8)
-    password_confirm: str = Field(..., min_length=8)
+    password: str = Field(
+        ...,
+        min_length=8,
+        max_length=128,
+        description="Password must be 8-128 characters (bcrypt 72-byte limit)"
+    )
+    password_confirm: str = Field(
+        ...,
+        min_length=8,
+        max_length=128
+    )
     full_name: str = Field(..., min_length=2)
 
     class Config:
@@ -38,6 +47,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     full_name: str
     avatar_url: str | None = None
+    auth_provider: str = "local"
     plan: str
     credits: int
     is_active: bool

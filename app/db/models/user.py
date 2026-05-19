@@ -20,9 +20,9 @@ class User(Base):
         index=True,
         nullable=False
     )
-    password_hash: Mapped[str] = mapped_column(
+    password_hash: Mapped[str | None] = mapped_column(
         String(255),
-        nullable=False
+        nullable=True
     )
     full_name: Mapped[str] = mapped_column(
         String(255),
@@ -32,7 +32,7 @@ class User(Base):
         String(1024),
         nullable=True
     )
-    provider: Mapped[str] = mapped_column(
+    auth_provider: Mapped[str] = mapped_column(
         String(50),
         default="local",
         nullable=False

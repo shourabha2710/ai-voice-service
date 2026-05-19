@@ -20,22 +20,32 @@ from app.db.repositories.audio import AudioGenerationRepository
 router = APIRouter(prefix="/api/v1/tts", tags=["TTS"])
 
 async def background_long_audio(job_id: str, request: LongTTSRequest, user_id: Optional[uuid.UUID]):
-    """Background task wrapper to update DB after generation completes."""
-    await tts_service.generate_long_audio(job_id, request)
-    
-    if user_id:
-        async with AsyncSessionLocal() as session:
+    """Background task: generate, then update DB row on completion or failure."""
+    try:
+        await tts_service.generate_long_audio(job_id, request)
+    except Exception as e:
+        logger.error(f"Background generation failed for job {job_id}: {str(e)}")
+    finally:
+        if user_id:
             try:
-                repo = AudioGenerationRepository(session)
-                db_job = await repo.get_by_job_id(job_id)
-                if db_job:
-                    mem_job = job_service.get_job(job_id)
-                    if mem_job:
-                        db_job.status = mem_job.status
-                        db_job.audio_path = mem_job.output_file
-                        if mem_job.status == "completed":
-                            db_job.completed_at = datetime.utcnow()
-                        await session.commit()
+                async with AsyncSessionLocal() as session:
+                    repo = AudioGenerationRepository(session)
+                    db_job = await repo.get_by_job_id(job_id)
+                    if db_job:
+                        mem_job = job_service.get_job(job_id)
+                        if mem_job:
+                            db_job.status = mem_job.status
+                            db_job.audio_path = mem_job.output_file
+                            if mem_job.status == "completed":
+                                db_job.completed_at = datetime.utcnow()
+                            await session.commit()
+                            logger.info(f"DB updated for job {job_id}: status={mem_job.status}")
+                        else:
+                            db_job.status = "failed"
+                            await session.commit()
+                            logger.warning(f"Job {job_id} not found in memory, DB set to failed")
+                    else:
+                        logger.warning(f"Job {job_id} not found in DB for background update")
             except Exception as e:
                 logger.error(f"Error updating DB for background job {job_id}: {str(e)}")
 
