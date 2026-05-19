@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Depends, status
-from app.auth.schemas import UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse
+from app.auth.schemas import UserCreate, UserLogin, TokenResponse, RefreshTokenRequest, UserResponse, GoogleLogin
 from app.auth.service import AuthService
 from app.auth.dependencies import get_auth_service, get_current_user
 from app.db.models.user import User

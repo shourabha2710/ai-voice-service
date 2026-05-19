@@ -10,6 +10,7 @@ from alembic import context
 # Import our settings and base metadata
 from app.config.settings import settings
 from app.db.base import Base
+from app.db.base_class import *
 from app.db.session import get_encoded_db_url
 
 # this is the Alembic Config object, which provides
