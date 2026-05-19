@@ -55,6 +55,14 @@ async def lifespan(app: FastAPI):
     else:
         logger.info("FFmpeg validated successfully.")
 
+    # Database startup validation
+    from app.db.session import validate_db_connection
+    db_ok = await validate_db_connection()
+    if not db_ok:
+        logger.error("CRITICAL: Database connection validation failed during startup!")
+    else:
+        logger.info("Database connection validated successfully during startup.")
+
     settings.audio_path.mkdir(parents=True, exist_ok=True)
     settings.temp_path.mkdir(parents=True, exist_ok=True)
     settings.log_path.mkdir(parents=True, exist_ok=True)
@@ -140,10 +148,12 @@ async def serve_frontend():
 
 
 # Include Routes
-from app.routes import health, tts
+from app.routes import health, tts, auth, generations
 
 app.include_router(health.router)
 app.include_router(tts.router)
+app.include_router(auth.router)
+app.include_router(generations.router)
 
 
 if __name__ == "__main__":

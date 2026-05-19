@@ -19,6 +19,16 @@ class Settings(BaseSettings):
     JOB_EXPIRATION_MINUTES: int = 60
     CLEANUP_INTERVAL_MINUTES: int = 30
     FFMPEG_PATH: Optional[Path] = None
+    DATABASE_URL: str = "postgresql+asyncpg://postgres:Admin@123postgres@localhost:5432/ai_voice_generator"
+    
+    # JWT Auth settings
+    JWT_SECRET_KEY: str = "09d25e094faa6ca2556c818166b7a9563b93f7099f6f0f4caa6cf63b88e8d3e7"
+    JWT_REFRESH_SECRET_KEY: str = "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 15
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
+    # OAuth
+    GOOGLE_CLIENT_ID: str = ""
     
     # Computed paths
     @property
@@ -69,6 +79,7 @@ class Settings(BaseSettings):
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
+        extra = "ignore"
 
 settings = Settings()
 
