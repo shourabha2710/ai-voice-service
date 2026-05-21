@@ -167,4 +167,73 @@ export const deleteJob = async (jobId: string): Promise<{ message: string }> => 
   return response.data;
 };
 
+// Image Generation APIs
+export interface ImageGeneration {
+  id: string;
+  user_id: string;
+  prompt: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  image_path: string | null;
+  image_url?: string | null;
+  provider: string;
+  generation_time_seconds: number | null;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface ImageGenerationRequest {
+  prompt: string;
+}
+
+export interface ImageHistoryResponse {
+  items: ImageGeneration[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export const generateImage = async (data: ImageGenerationRequest): Promise<ImageGeneration> => {
+  console.log('GENERATE_API_CALL_START', { path: '/images/generate', prompt: data.prompt.slice(0, 80) });
+  console.log('GENERATE_API_TOKEN', { hasToken: !!localStorage.getItem('access_token') });
+  const response = await api.post('/images/generate', data);
+  console.log('GENERATE_API_CALL_SUCCESS', { status: response.status, id: response.data?.id });
+  return response.data;
+};
+
+export const getImageHistory = async (
+  skip = 0,
+  limit = 20,
+  status?: string
+): Promise<ImageHistoryResponse> => {
+  console.log('API_REQUEST', { path: '/images/history', skip, limit, status });
+  const response = await api.get('/images/history', {
+    params: {
+      skip,
+      limit,
+      status_filter: status,
+    },
+  });
+  return response.data;
+};
+
+export const getImageDetail = async (imageId: string): Promise<ImageGeneration> => {
+  console.log('API_REQUEST', { path: `/images/${imageId}` });
+  const response = await api.get(`/images/${imageId}`);
+  return response.data;
+};
+
+export const downloadImage = async (imageId: string): Promise<Blob> => {
+  console.log('API_REQUEST', { path: `/images/${imageId}/file` });
+  const response = await api.get(`/images/${imageId}/file`, {
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+export const deleteImage = async (imageId: string): Promise<void> => {
+  console.log('API_REQUEST', { path: `/images/${imageId}` });
+  await api.delete(`/images/${imageId}`);
+};
+
 export default api;

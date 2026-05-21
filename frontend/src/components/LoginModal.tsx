@@ -1,8 +1,8 @@
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, LogIn } from 'lucide-react';
 import GoogleLoginButton from './GoogleLoginButton';
+import { useAuth } from '../store/AuthContext';
 
 interface LoginModalProps {
   isOpen: boolean;
@@ -10,7 +10,15 @@ interface LoginModalProps {
 }
 
 export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
-  const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
+
+  // Auto-close modal when authentication succeeds
+  useEffect(() => {
+    if (isAuthenticated && isOpen) {
+      console.log('AUTH_MODAL_CLOSING');
+      onClose();
+    }
+  }, [isAuthenticated, isOpen, onClose]);
 
   useEffect(() => {
     if (isOpen) {
@@ -24,8 +32,8 @@ export default function LoginModal({ isOpen, onClose }: LoginModalProps) {
   }, [isOpen]);
 
   const handleLoginComplete = () => {
-    onClose();
-    navigate('/generator');
+    console.log('LOGIN_SUCCESS');
+    // Modal will auto-close via the isAuthenticated effect above
   };
 
   return (

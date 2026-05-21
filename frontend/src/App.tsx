@@ -10,6 +10,7 @@ import Footer from './components/Footer'
 // Pages
 import LandingPage from './pages/LandingPage'
 import GeneratorPage from './pages/GeneratorPage'
+import ImageGeneratorPage from './pages/ImageGeneratorPage'
 import JobsPage from './pages/JobsPage'
 import FeaturesPage from './pages/FeaturesPage'
 import AboutPage from './pages/AboutPage'
@@ -30,6 +31,7 @@ function AnimatedRoutes() {
       <Routes location={location} key={location.pathname}>
         <Route path="/" element={<PageWrapper><LandingPage /></PageWrapper>} />
         <Route path="/generator" element={<PageWrapper><GeneratorPage /></PageWrapper>} />
+        <Route path="/images" element={<PageWrapper><ImageGeneratorPage /></PageWrapper>} />
         <Route path="/jobs" element={<PageWrapper><JobsPage /></PageWrapper>} />
         <Route path="/features" element={<PageWrapper><FeaturesPage /></PageWrapper>} />
         <Route path="/about" element={<PageWrapper><AboutPage /></PageWrapper>} />

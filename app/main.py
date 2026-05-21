@@ -66,6 +66,20 @@ async def lifespan(app: FastAPI):
     settings.audio_path.mkdir(parents=True, exist_ok=True)
     settings.temp_path.mkdir(parents=True, exist_ok=True)
     settings.log_path.mkdir(parents=True, exist_ok=True)
+    
+    # Create storage directory for generated images
+    image_storage_path = Path("storage/generated-images")
+    image_storage_path.mkdir(parents=True, exist_ok=True)
+    logger.info(f"Image storage directory ready: {image_storage_path.absolute()}")
+
+    # Initialize image generation service
+    try:
+        from app.services.image_service import image_service
+        await image_service.initialize()
+        device_info = image_service.get_device_info()
+        logger.info(f"Image generation service initialized: {device_info}")
+    except Exception as e:
+        logger.error(f"Failed to initialize image generation service: {e}")
 
     cleanup_task = asyncio.create_task(cleanup_service.start())
 
@@ -181,12 +195,13 @@ async def serve_frontend():
 
 
 # Include Routes
-from app.routes import health, tts, auth, generations
+from app.routes import health, tts, auth, generations, images
 
 app.include_router(health.router)
 app.include_router(tts.router)
 app.include_router(auth.router)
 app.include_router(generations.router)
+app.include_router(images.router)
 
 
 if __name__ == "__main__":

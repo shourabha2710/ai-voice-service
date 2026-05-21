@@ -88,6 +88,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(accessToken);
     const userData = await initializeAuthAndHistory(accessToken);
     setAuthReady(true);
+    console.log('LOGIN_SUCCESS');
+    console.log('AUTH_STATE_UPDATED', { isAuthenticated: true, user: userData.email });
     console.log('AUTH_LOGIN_COMPLETE', userData);
     console.log('AUTH_READY', true);
     return userData;

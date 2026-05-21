@@ -7,7 +7,8 @@ import LoginModal from './LoginModal'
 
 const links = [
   { path: '/', label: 'Home' },
-  { path: '/generator', label: 'Generator' },
+  { path: '/generator', label: 'Audio' },
+  { path: '/images', label: 'Images' },
   { path: '/jobs', label: 'Jobs' },
   { path: '/features', label: 'Features' },
   { path: '/about', label: 'About' },

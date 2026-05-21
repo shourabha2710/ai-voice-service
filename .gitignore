@@ -156,3 +156,38 @@ coverage/
 
 .AppleDouble
 .LSOverride
+
+# =========================================
+# AI IMAGE GENERATION
+# =========================================
+
+# Generated Images
+storage/generated-images/
+storage/images/
+generated_images/
+
+# HuggingFace / Diffusers Cache
+huggingface/
+.huggingface/
+hf_cache/
+
+# Torch / Model Cache
+torch_cache/
+model_cache/
+models/
+
+# Stable Diffusion Models
+*.ckpt
+*.safetensors
+*.bin
+
+# Diffusers
+diffusers_cache/
+
+# CUDA
+*.pt
+*.pth
+
+# Image Outputs
+outputs/
+renders/
