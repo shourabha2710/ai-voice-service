@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime
-from sqlalchemy import String, Integer, ForeignKey, DateTime, text
+from sqlalchemy import String, Integer, ForeignKey, DateTime, text, Index
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
@@ -54,6 +54,13 @@ class AudioGeneration(Base):
     completed_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True
+    )
+
+    __table_args__ = (
+        Index("ix_audio_generations_user_id", "user_id"),
+        Index("ix_audio_generations_created_at", "created_at"),
+        Index("ix_audio_generations_user_id_created_at", "user_id", "created_at"),
+        Index("ix_audio_generations_user_id_job_id", "user_id", "job_id"),
     )
 
     # Relationships

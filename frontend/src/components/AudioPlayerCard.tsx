@@ -212,7 +212,7 @@ export default function AudioPlayerCard({ jobId, audioUrl: initialUrl, hideIcon 
         {/* Hidden Audio Element */}
         <audio
           ref={audioRef}
-          src={playableUrl || ""}
+          src={playableUrl || undefined}
           onTimeUpdate={onTimeUpdate}
           onLoadedMetadata={onLoadedMetadata}
           onEnded={onEnded}

@@ -12,7 +12,7 @@ from app.db.repositories.audio import AudioGenerationRepository
 
 router = APIRouter(prefix="/api/v1/generations", tags=["generations"])
 
-class GenerationResponse(BaseModel):
+class GenerationItemResponse(BaseModel):
     id: uuid.UUID
     job_id: str
     type: str
@@ -26,13 +26,19 @@ class GenerationResponse(BaseModel):
     class Config:
         from_attributes = True
 
+class GenerationListResponse(BaseModel):
+    items: List[GenerationItemResponse]
+    total: int
+    page: int
+    page_size: int
+
 class GenerationStatsResponse(BaseModel):
     total_generations: int
     completed: int
     failed: int
     total_characters_processed: int
 
-@router.get("/me", response_model=List[GenerationResponse], summary="Get My Generations")
+@router.get("/me", response_model=GenerationListResponse, summary="Get My Generations")
 async def get_my_generations(
     skip: int = Query(0, ge=0),
     limit: int = Query(20, ge=1, le=100),
@@ -44,13 +50,19 @@ async def get_my_generations(
     Get paginated and filtered history of the current user's audio generations, ordered by newest first.
     """
     repo = AudioGenerationRepository(db)
-    generations = await repo.get_by_user_id(
+    items = await repo.get_user_generations(
         user_id=current_user.id,
         skip=skip,
         limit=limit,
-        status=status
+        status=status,
     )
-    return generations
+    total = await repo.count_by_user_id(current_user.id, status=status)
+    return GenerationListResponse(
+        items=items,
+        total=total,
+        page=(skip // limit) + 1,
+        page_size=limit,
+    )
 
 @router.get("/stats", response_model=GenerationStatsResponse, summary="Get My Generation Stats")
 async def get_my_generation_stats(

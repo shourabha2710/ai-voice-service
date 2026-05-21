@@ -1,13 +1,16 @@
 import axios from "axios";
 
-const API_BASE_URL = "http://localhost:8000/api/v1/tts";
+const API_BASE_URL = "http://localhost:8000/api/v1";
 
 const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
+let refreshPromise: Promise<{ access_token: string; refresh_token: string } | null> | null = null;
+
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem('access_token');
+  console.log('API_AUTH_HEADER', { hasToken: !!token });
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -20,21 +23,30 @@ api.interceptors.response.use(
     if (error.response?.status === 401) {
       const refreshToken = localStorage.getItem('refresh_token');
       if (refreshToken) {
-        try {
-          const res = await fetch('/api/v1/auth/refresh', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ refresh_token: refreshToken }),
-          });
-          if (res.ok) {
-            const tokens = await res.json();
-            localStorage.setItem('access_token', tokens.access_token);
-            localStorage.setItem('refresh_token', tokens.refresh_token);
-            error.config.headers.Authorization = `Bearer ${tokens.access_token}`;
-            return api(error.config);
-          }
-        } catch {
-          // refresh failed
+        if (!refreshPromise) {
+          refreshPromise = (async () => {
+            try {
+              const res = await fetch(`${API_BASE_URL}/auth/refresh`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ refresh_token: refreshToken }),
+              });
+              if (!res.ok) return null;
+              return res.json();
+            } catch {
+              return null;
+            } finally {
+              refreshPromise = null;
+            }
+          })();
+        }
+
+        const tokens = await refreshPromise;
+        if (tokens) {
+          localStorage.setItem('access_token', tokens.access_token);
+          localStorage.setItem('refresh_token', tokens.refresh_token);
+          error.config.headers.Authorization = `Bearer ${tokens.access_token}`;
+          return api(error.config);
         }
       }
       localStorage.removeItem('access_token');
@@ -60,13 +72,52 @@ export interface JobProgress {
   total_chunks: number;
   created_at: string;
   updated_at: string;
+  output_file: string | null;
+  message?: string | null;
   error: string | null;
 }
 
-export const getVoices = async (): Promise<Voice[]> => {
-  const response = await api.get("/voices");
+export interface GenerationItem {
+  id: string;
+  job_id: string;
+  type: string;
+  status: string;
+  voice: string;
+  text_length: number;
+  audio_path: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface GenerationListResponse {
+  items: GenerationItem[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export const getMyGenerations = async (
+  skip = 0,
+  limit = 20,
+  status?: string
+): Promise<GenerationListResponse> => {
+  console.log('API_REQUEST', { path: '/generations/me', skip, limit, status });
+  const response = await api.get('/generations/me', {
+    params: {
+      skip,
+      limit,
+      status,
+    },
+  });
   return response.data;
 };
+
+export const getVoices = async (): Promise<Voice[]> => {
+  const response = await api.get("/tts/voices");
+  return response.data;
+};
+
+export const fetchVoices = getVoices;
 
 export const generateShortAudio = async (data: {
   text: string;
@@ -74,7 +125,7 @@ export const generateShortAudio = async (data: {
   rate?: string;
   pitch?: string;
 }, config?: import("axios").AxiosRequestConfig): Promise<{ blob: Blob; jobId: string | null }> => {
-  const response = await api.post("/generate", data, {
+  const response = await api.post("/tts/generate", data, {
     responseType: "blob",
     ...config,
   });
@@ -89,25 +140,30 @@ export const generateLongAudio = async (data: {
   pitch?: string;
   chunk_size?: number;
 }): Promise<{ job_id: string; message: string }> => {
-  const response = await api.post("/generate-long-audio", data);
+  const response = await api.post("/tts/generate-long-audio", data);
   return response.data;
 };
 
+export const startLongAudioJob = generateLongAudio;
+
 export const getJobStatus = async (jobId: string): Promise<JobProgress> => {
-  const response = await api.get(`/job/${jobId}`);
+  const response = await api.get(`/tts/job/${jobId}`);
   return response.data;
 };
 
 export const downloadJobResult = async (jobId: string, config?: import("axios").AxiosRequestConfig): Promise<Blob> => {
-  const response = await api.get(`/job/${jobId}/download`, {
+  const response = await api.get(`/tts/job/${jobId}/download`, {
     responseType: "blob",
     ...config,
   });
   return response.data;
 };
 
+export const downloadJobAudio = async (jobId: string, config?: import("axios").AxiosRequestConfig): Promise<Blob> =>
+  downloadJobResult(jobId, config);
+
 export const deleteJob = async (jobId: string): Promise<{ message: string }> => {
-  const response = await api.delete(`/job/${jobId}`);
+  const response = await api.delete(`/tts/job/${jobId}`);
   return response.data;
 };
 

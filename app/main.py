@@ -16,7 +16,7 @@ import os
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
@@ -134,6 +134,27 @@ async def add_security_headers(request: Request, call_next):
     return response
 
 
+@app.exception_handler(HTTPException)
+async def http_exception_handler(request: Request, exc: HTTPException):
+    logger.warning(f"HTTPException: status={exc.status_code} detail={exc.detail}")
+    detail = exc.detail
+    if isinstance(detail, dict):
+        message = detail.get("message") or detail.get("detail") or str(detail)
+        code = detail.get("code") or detail.get("error") or ""
+    else:
+        message = str(detail)
+        code = ""
+
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={
+            "success": False,
+            "message": message,
+            "code": code,
+        },
+    )
+
+
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     logger.exception(f"Unhandled exception: {str(exc)}")
@@ -141,8 +162,9 @@ async def global_exception_handler(request: Request, exc: Exception):
     return JSONResponse(
         status_code=500,
         content={
-            "error": "INTERNAL_SERVER_ERROR",
+            "success": False,
             "message": "An internal server error occurred.",
+            "code": "INTERNAL_SERVER_ERROR",
         },
     )
 

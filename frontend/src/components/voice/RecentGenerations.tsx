@@ -74,7 +74,7 @@ export default function RecentGenerations() {
         <AnimatePresence mode="popLayout">
           {filteredJobs.length > 0 ? (
             filteredJobs.map((job) => (
-              <JobHistoryCard key={job.id} job={job} onRemove={() => removeJob(job.id)} />
+              <JobHistoryCard key={job.job_id} job={job} onRemove={() => removeJob(job.job_id)} />
             ))
           ) : (
             <motion.div 
@@ -155,7 +155,7 @@ function JobHistoryCard({ job, onRemove }: { job: AudioJob; onRemove: () => void
         <div className="flex flex-col sm:flex-row items-center gap-4 w-full lg:w-auto">
           {job.status === "completed" && (
             <div className="w-full sm:w-[400px]">
-              <AudioPlayerCard jobId={job.id} hideIcon />
+              <AudioPlayerCard jobId={job.job_id} hideIcon />
             </div>
           )}
 

@@ -50,7 +50,7 @@ export default function TTSGenerator() {
   const [isPlaying, setIsPlaying] = useState(false)
   const [progress, setProgress] = useState<JobProgress | null>(null)
   const audioRef = useRef<HTMLAudioElement>(null)
-  const pollRef = useRef<ReturnType<typeof setInterval>>()
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
     fetchVoices()
@@ -125,7 +125,7 @@ export default function TTSGenerator() {
 
     try {
       if (t.length <= MAX_SHORT) {
-        const blob = await generateShortAudio({ text: t, voice, rate: rateStr, pitch: pitchStr })
+        const { blob } = await generateShortAudio({ text: t, voice, rate: rateStr, pitch: pitchStr })
         showAudio(blob, 'speech.mp3')
       } else {
         const { job_id } = await startLongAudioJob({ text: t, voice, rate: rateStr, pitch: pitchStr })
@@ -167,16 +167,25 @@ export default function TTSGenerator() {
           setProgress(job)
 
           if (job.status === 'completed') {
-            clearInterval(pollRef.current)
+            if (pollRef.current !== null) {
+              clearInterval(pollRef.current)
+              pollRef.current = null
+            }
             const blob = await downloadJobAudio(jobId)
             showAudio(blob, `long_speech_${jobId}.mp3`)
             resolve()
           } else if (job.status === 'failed') {
-            clearInterval(pollRef.current)
+            if (pollRef.current !== null) {
+              clearInterval(pollRef.current)
+              pollRef.current = null
+            }
             reject(new Error(job.error || 'Job failed'))
           }
         } catch (e) {
-          clearInterval(pollRef.current)
+          if (pollRef.current !== null) {
+            clearInterval(pollRef.current)
+            pollRef.current = null
+          }
           reject(e)
         }
       }, 1500)

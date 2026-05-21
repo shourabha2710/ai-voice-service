@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { motion } from "framer-motion";
 import toast from "react-hot-toast";
 import {
@@ -18,12 +18,16 @@ import { GeneratorSkeleton } from "../components/Skeleton";
 import VoiceSelector from "../components/voice/VoiceSelector";
 import RecentGenerations from "../components/voice/RecentGenerations";
 import { useAudioJobsStore } from "../store/useAudioJobsStore";
+import { useAuth } from "../store/AuthContext";
+import LoginModal from "../components/LoginModal";
 import { nanoid } from "nanoid";
 import AudioPlayerCard from "../components/AudioPlayerCard";
 
 export default function GeneratorPage() {
   const { voices, loading: voicesLoading } = useVoices();
   const { addJob, removeJob, syncWithBackend, cleanupJobs, isPolling, startPolling } = useAudioJobsStore();
+  const { isAuthenticated } = useAuth();
+  const hasInitializedRef = useRef(false);
 
   const [text, setText] = useState("");
   const [voice, setVoice] = useState("en-US-JennyNeural");
@@ -31,6 +35,7 @@ export default function GeneratorPage() {
   const [pitch, setPitch] = useState(0);
   const [generating, setGenerating] = useState(false);
   const [lastJobId, setLastJobId] = useState<string | null>(null);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   useEffect(() => {
     if (voices.length > 0 && !voice) {
@@ -39,12 +44,23 @@ export default function GeneratorPage() {
   }, [voices, voice]);
 
   useEffect(() => {
+    if (hasInitializedRef.current) {
+      console.log("GENERATOR_PAGE_DUPLICATE_MOUNT_IGNORED");
+      return;
+    }
+    hasInitializedRef.current = true;
+    console.log("GENERATOR_PAGE_INITIALIZE");
     syncWithBackend();
     cleanupJobs();
     // No need for global interval here anymore, the store manages polling when active
   }, []);
 
   const handleGenerate = async (type: "short" | "long" = "short") => {
+    if (!isAuthenticated) {
+      setIsLoginModalOpen(true);
+      return;
+    }
+
     if (!text.trim()) {
       toast.error("Please enter some text to convert.");
       return;
@@ -65,7 +81,7 @@ export default function GeneratorPage() {
         });
         
         addJob({
-          id: result.job_id,
+          job_id: result.job_id,
           type: "long",
           status: "queued",
           progress: 0,
@@ -90,7 +106,7 @@ export default function GeneratorPage() {
         const finalId = serverJobId || tempId;
         
         addJob({
-          id: finalId,
+          job_id: finalId,
           type: "short",
           status: "completed",
           progress: 100,
@@ -250,6 +266,7 @@ export default function GeneratorPage() {
 
         <RecentGenerations />
       </div>
+      <LoginModal isOpen={isLoginModalOpen} onClose={() => setIsLoginModalOpen(false)} />
     </motion.div>
   );
 }

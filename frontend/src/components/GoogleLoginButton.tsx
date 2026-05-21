@@ -43,7 +43,7 @@ export default function GoogleLoginButton({ onLoginComplete }: GoogleLoginButton
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/v1/auth/google', {
+      const res = await fetch('http://localhost:8000/api/v1/auth/google', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ token: credential }),
@@ -119,7 +119,7 @@ export default function GoogleLoginButton({ onLoginComplete }: GoogleLoginButton
     if (gsiInitialized) return;
     google.accounts.id.initialize({
       client_id: clientId,
-      callback: (response) => {
+      callback: (response: { credential?: string }) => {
         if (response.credential) {
           handleGoogleResponse(response.credential);
         }

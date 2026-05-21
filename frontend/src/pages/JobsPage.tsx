@@ -36,7 +36,8 @@ const statusColors: Record<string, string> = {
 export default function JobsPage() {
   const [jobIds, setJobIds] = useState<string[]>(() => {
     try {
-      return JSON.parse(localStorage.getItem("jobIds") || "[]");
+      const ids = JSON.parse(localStorage.getItem("jobIds") || "[]") as string[];
+      return Array.from(new Set(ids));
     } catch {
       return [];
     }
@@ -47,8 +48,9 @@ export default function JobsPage() {
   const [loading, setLoading] = useState(true);
 
   const saveJobIds = useCallback((ids: string[]) => {
-    setJobIds(ids);
-    localStorage.setItem("jobIds", JSON.stringify(ids));
+    const unique = Array.from(new Set(ids));
+    setJobIds(unique);
+    localStorage.setItem("jobIds", JSON.stringify(unique));
   }, []);
 
   const fetchJobs = useCallback(async () => {
@@ -68,6 +70,8 @@ export default function JobsPage() {
           total_chunks: 0,
           created_at: "",
           updated_at: "",
+          output_file: null,
+          message: "Job not found",
           error: "Job not found",
         });
       }

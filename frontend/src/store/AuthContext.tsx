@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-hot-toast';
+import { useAudioJobsStore } from './useAudioJobsStore';
 
 export interface User {
   id: string;
@@ -15,6 +16,7 @@ interface AuthContextType {
   token: string | null;
   isAuthenticated: boolean;
   isLoading: boolean;
+  authReady: boolean;
   login: (accessToken: string, refreshToken: string) => Promise<User>;
   logout: () => Promise<void>;
   refresh: () => Promise<boolean>;
@@ -22,7 +24,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE = '/api/v1/auth';
+const API_BASE = 'http://localhost:8000/api/v1/auth';
 
 async function fetchUser(token: string): Promise<User> {
   const res = await fetch(`${API_BASE}/me`, {
@@ -52,6 +54,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [authReady, setAuthReady] = useState(false);
 
   const clearTokens = useCallback(() => {
     localStorage.removeItem('access_token');
@@ -61,18 +64,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   }, []);
 
   const fetchAndSetUser = useCallback(async (accessToken: string): Promise<User> => {
+    console.log('AUTH_FETCH_USER');
     const userData = await fetchUser(accessToken);
     setUser(userData);
     return userData;
   }, []);
 
+  const initializeAuthAndHistory = useCallback(async (accessToken: string): Promise<User> => {
+    console.log('AUTH_INITIALIZE_START');
+    const userData = await fetchAndSetUser(accessToken);
+    console.log('AUTH_RESTORED', userData);
+    try {
+      await useAudioJobsStore.getState().fetchGenerations();
+    } catch (err) {
+      console.error('AUTH_HISTORY_FETCH_FAILED', err);
+    }
+    return userData;
+  }, [fetchAndSetUser]);
+
   const login = useCallback(async (accessToken: string, refreshToken: string): Promise<User> => {
     localStorage.setItem('access_token', accessToken);
     localStorage.setItem('refresh_token', refreshToken);
     setToken(accessToken);
-    const userData = await fetchAndSetUser(accessToken);
+    const userData = await initializeAuthAndHistory(accessToken);
+    setAuthReady(true);
+    console.log('AUTH_LOGIN_COMPLETE', userData);
+    console.log('AUTH_READY', true);
     return userData;
-  }, [fetchAndSetUser]);
+  }, [initializeAuthAndHistory]);
 
   const logout = useCallback(async () => {
     const storedRefresh = localStorage.getItem('refresh_token');
@@ -94,6 +113,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     clearTokens();
+    useAudioJobsStore.getState().stopPolling?.();
+    useAudioJobsStore.getState().resetJobs?.();
+    localStorage.removeItem('jobIds');
+    console.log('AUTH_LOGOUT_CLEAR_HISTORY');
+    setAuthReady(false);
   }, [clearTokens]);
 
   const refresh = useCallback(async (): Promise<boolean> => {
@@ -111,32 +135,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setToken(tokens.access_token);
 
     try {
-      await fetchAndSetUser(tokens.access_token);
+      await initializeAuthAndHistory(tokens.access_token);
+      setAuthReady(true);
+      console.log('AUTH_REFRESH_COMPLETE');
+      console.log('AUTH_READY', true);
       return true;
     } catch {
       clearTokens();
       return false;
     }
-  }, [fetchAndSetUser, clearTokens]);
+  }, [clearTokens, initializeAuthAndHistory]);
 
   useEffect(() => {
     let mounted = true;
 
     const restore = async () => {
+      console.log('AUTH_RESTORE_START');
       setIsLoading(true);
       const storedToken = localStorage.getItem('access_token');
       const storedRefresh = localStorage.getItem('refresh_token');
 
       if (!storedToken) {
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+          setAuthReady(true);
+          console.log('AUTH_READY', true);
+        }
+        console.log('AUTH_RESTORE_NO_TOKEN');
         return;
       }
 
+      console.log('TOKEN_FOUND', true);
       setToken(storedToken);
 
       try {
-        await fetchAndSetUser(storedToken);
+        await initializeAuthAndHistory(storedToken);
+        console.log('AUTH_RESTORE_SUCCESS');
       } catch {
+        console.log('AUTH_RESTORE_FAILED');
         if (storedRefresh) {
           const ok = await refreshTokens(storedRefresh);
           if (ok && mounted) {
@@ -144,24 +180,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('refresh_token', ok.refresh_token);
             setToken(ok.access_token);
             try {
-              await fetchAndSetUser(ok.access_token);
+              await initializeAuthAndHistory(ok.access_token);
+              console.log('AUTH_REFRESH_SUCCESS');
             } catch {
               clearTokens();
+              console.log('AUTH_REFRESH_FETCH_FAILED');
             }
           } else {
             clearTokens();
+            console.log('AUTH_REFRESH_FAILED');
           }
         } else {
           clearTokens();
         }
       }
 
-      if (mounted) setIsLoading(false);
+      if (mounted) {
+        setIsLoading(false);
+        setAuthReady(true);
+        console.log('AUTH_READY', true);
+      }
     };
 
     restore();
     return () => { mounted = false; };
-  }, [fetchAndSetUser, clearTokens]);
+  }, [initializeAuthAndHistory, clearTokens]);
 
   return (
     <AuthContext.Provider
@@ -170,6 +213,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         token,
         isAuthenticated: !!user,
         isLoading,
+        authReady,
         login,
         logout,
         refresh,

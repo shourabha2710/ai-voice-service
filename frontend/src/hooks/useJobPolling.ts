@@ -22,6 +22,7 @@ export function useJobPolling() {
   }, [audioUrl]);
 
   const fetchStatus = useCallback(async (jobId: string) => {
+    console.log('JOB_POLLING_FETCH_STATUS', { jobId });
     try {
       const status = await getJobStatus(jobId);
       setJob(status);
@@ -57,10 +58,10 @@ export function useJobPolling() {
     fetchStatus(jobId);
     
     // Add to local storage for persistence across page refreshes
-    const existingIds = JSON.parse(localStorage.getItem('jobIds') || '[]');
-    if (!existingIds.includes(jobId)) {
-      localStorage.setItem('jobIds', JSON.stringify([jobId, ...existingIds]));
-    }
+    const existingIds: string[] = JSON.parse(localStorage.getItem('jobIds') || '[]');
+    const uniqueIds = [jobId, ...existingIds.filter((id) => id !== jobId)];
+    localStorage.setItem('jobIds', JSON.stringify(uniqueIds));
+    console.log('JOB_POLLING_STORE_IDS', { jobId, count: uniqueIds.length });
 
     pollingInterval.current = setInterval(() => {
       fetchStatus(jobId);
