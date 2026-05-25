@@ -195,13 +195,14 @@ async def serve_frontend():
 
 
 # Include Routes
-from app.routes import health, tts, auth, generations, images
+from app.routes import health, tts, auth, generations, images, videos
 
 app.include_router(health.router)
 app.include_router(tts.router)
 app.include_router(auth.router)
 app.include_router(generations.router)
 app.include_router(images.router)
+app.include_router(videos.router)
 
 
 if __name__ == "__main__":

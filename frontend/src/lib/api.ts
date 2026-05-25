@@ -1,4 +1,5 @@
 import axios from "axios";
+import type { VideoDownload, VideoDownloadRequest, VideoListResponse } from '../types';
 
 const API_BASE_URL = "http://localhost:8000/api/v1";
 
@@ -234,6 +235,48 @@ export const downloadImage = async (imageId: string): Promise<Blob> => {
 export const deleteImage = async (imageId: string): Promise<void> => {
   console.log('API_REQUEST', { path: `/images/${imageId}` });
   await api.delete(`/images/${imageId}`);
+};
+
+// Video Download APIs
+export const startVideoDownload = async (data: VideoDownloadRequest): Promise<VideoDownload> => {
+  console.log('API_REQUEST', { path: '/videos/download', url: data.url });
+  const response = await api.post('/videos/download', data);
+  return response.data;
+};
+
+export const getMyVideoDownloads = async (
+  skip = 0,
+  limit = 20,
+  status?: string
+): Promise<VideoListResponse> => {
+  console.log('API_REQUEST', { path: '/videos/me', skip, limit, status });
+  const response = await api.get('/videos/me', {
+    params: {
+      skip,
+      limit,
+      status_filter: status,
+    },
+  });
+  return response.data;
+};
+
+export const getVideoDownloadDetail = async (downloadId: string): Promise<VideoDownload> => {
+  console.log('API_REQUEST', { path: `/videos/${downloadId}` });
+  const response = await api.get(`/videos/${downloadId}`);
+  return response.data;
+};
+
+export const downloadVideoFile = async (downloadId: string): Promise<Blob> => {
+  console.log('API_REQUEST', { path: `/videos/${downloadId}/file` });
+  const response = await api.get(`/videos/${downloadId}/file`, {
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+export const deleteVideoDownload = async (downloadId: string): Promise<void> => {
+  console.log('API_REQUEST', { path: `/videos/${downloadId}` });
+  await api.delete(`/videos/${downloadId}`);
 };
 
 export default api;

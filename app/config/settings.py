@@ -30,6 +30,12 @@ class Settings(BaseSettings):
     # OAuth
     GOOGLE_CLIENT_ID: str = ""
     
+    # Video Download settings
+    MAX_VIDEO_SIZE_MB: int = 500
+    VIDEO_DOWNLOAD_TIMEOUT_MINUTES: int = 30
+    MAX_CONCURRENT_VIDEO_DOWNLOADS: int = 3
+    SUPPORTED_VIDEO_PLATFORMS: list = ["youtube", "instagram"]
+    
     # Computed paths
     @property
     def temp_path(self) -> Path:

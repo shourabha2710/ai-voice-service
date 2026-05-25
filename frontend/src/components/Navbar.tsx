@@ -9,6 +9,7 @@ const links = [
   { path: '/', label: 'Home' },
   { path: '/generator', label: 'Audio' },
   { path: '/images', label: 'Images' },
+  { path: '/videos', label: 'Videos' },
   { path: '/jobs', label: 'Jobs' },
   { path: '/features', label: 'Features' },
   { path: '/about', label: 'About' },

@@ -1,0 +1,328 @@
+import uuid
+from loguru import logger
+from fastapi import APIRouter, Depends, HTTPException, status, BackgroundTasks
+from fastapi.responses import FileResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from pathlib import Path
+
+from app.auth.dependencies import get_current_user
+from app.db.session import get_db
+from app.db.models.user import User
+from app.db.repositories.video import VideoDownloadRepository
+from app.schemas.video import (
+    VideoDownloadRequest,
+    VideoDownloadResponse,
+    VideoDownloadHistoryResponse,
+    VideoDownloadDetailResponse,
+)
+from app.services.video_download_service import video_download_service
+from app.utils.url_utils import sanitize_url_for_logging
+
+router = APIRouter(prefix="/api/v1/videos", tags=["videos"])
+
+
+@router.post("/download", response_model=VideoDownloadResponse, status_code=status.HTTP_202_ACCEPTED)
+async def download_video(
+    request: VideoDownloadRequest,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+    background_tasks: BackgroundTasks = BackgroundTasks(),
+):
+    """
+    Queue a video/audio download from YouTube or Instagram.
+
+    Returns immediately with a pending record (202 Accepted).
+    Download happens in the background.
+    """
+    logger.info(
+        f"POST /download hit — user={current_user.id} url='{sanitize_url_for_logging(request.url)}' type={request.download_type}"
+    )
+
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
+        )
+
+    # Validate URL and download type
+    valid, platform_or_error = video_download_service.validate_url(request.url)
+    if not valid:
+        logger.warning(f"Invalid URL from user {current_user.id}: {platform_or_error}")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=platform_or_error
+        )
+
+    try:
+        # Create pending download record
+        repo = VideoDownloadRepository(db)
+        download = await repo.create(
+            user_id=current_user.id,
+            url=request.url,
+            platform=platform_or_error,
+            download_type=request.download_type,
+        )
+        await db.commit()
+        logger.info(f"Download record created: {download.id}")
+
+        # Schedule background download
+        background_tasks.add_task(
+            video_download_service.download_media,
+            download_id=download.id,
+            url=request.url,
+            download_type=request.download_type,
+        )
+
+        logger.info(
+            f"Background task scheduled for download: {download.id} for user {current_user.id}"
+        )
+
+        return VideoDownloadResponse.from_orm(download)
+
+    except Exception as e:
+        logger.error(f"Error creating download record: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to queue download",
+        )
+
+
+@router.get("/me", response_model=VideoDownloadHistoryResponse)
+async def get_download_history(
+    skip: int = 0,
+    limit: int = 20,
+    status_filter: str | None = None,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get paginated download history for the current user.
+
+    Only returns downloads created by the authenticated user.
+    """
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
+        )
+
+    # Validate pagination bounds
+    if limit <= 0 or limit > 100:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid limit; must be 1-100")
+
+    try:
+        repo = VideoDownloadRepository(db)
+        downloads, total = await repo.get_user_downloads(
+            user_id=current_user.id, skip=skip, limit=limit, status=status_filter
+        )
+
+        page_num = (skip // limit) if limit else 0
+        return VideoDownloadHistoryResponse(
+            items=[VideoDownloadResponse.from_orm(d) for d in downloads],
+            total=total,
+            page=page_num,
+            page_size=limit,
+        )
+
+    except Exception as e:
+        logger.error(f"Error fetching download history: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch download history",
+        )
+
+
+@router.get("/{download_id}", response_model=VideoDownloadDetailResponse)
+async def get_download_detail(
+    download_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Get details of a specific download.
+
+    Only the owner can access their download.
+    """
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
+        )
+
+    try:
+        repo = VideoDownloadRepository(db)
+        download = await repo.get_by_id_and_user(download_id, current_user.id)
+
+        if not download:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Download not found"
+            )
+
+        return VideoDownloadDetailResponse.from_orm(download)
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error fetching download detail: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch download",
+        )
+
+
+@router.get("/{download_id}/file")
+async def download_file(
+    download_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Download the media file.
+
+    Only the owner can download their file, and only if completed.
+    """
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
+        )
+
+    try:
+        repo = VideoDownloadRepository(db)
+        download = await repo.get_by_id_and_user(download_id, current_user.id)
+
+        if not download:
+            logger.warning(
+                f"File download attempt for non-existent download: {download_id} by user {current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Download not found"
+            )
+
+        if download.status != "completed":
+            logger.warning(
+                f"File download attempt for incomplete download: {download_id} status={download.status}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Download not completed (status: {download.status})",
+            )
+
+        file_path = Path(download.file_path)
+        try:
+            resolved = file_path.resolve()
+            storage_dir = Path("storage/downloaded-videos").resolve()
+            # Ensure the file is inside the storage directory
+            if storage_dir not in resolved.parents and resolved != storage_dir:
+                logger.error(f"Illegal file path access attempt: {resolved}")
+                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
+            if not resolved.exists():
+                logger.error(f"File not found on disk: {resolved}")
+                raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="File not found")
+            file_path = resolved
+        except Exception as e:
+            logger.error(f"File path validation error: {e}")
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
+
+        # Determine media type
+        if download.download_type == "audio":
+            media_type = "audio/mpeg"
+            extension = "mp3"
+        else:
+            media_type = "video/mp4"
+            extension = "mp4"
+
+        filename = f"{download.title or 'download'}.{extension}"
+
+        logger.info(
+            f"Serving file download: {download_id} for user {current_user.id} filename={filename}"
+        )
+
+        return FileResponse(
+            file_path, media_type=media_type, filename=filename,
+        )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error serving file download: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to download file",
+        )
+
+
+@router.delete("/{download_id}")
+async def delete_download(
+    download_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Delete a download and its associated file.
+
+    Only the owner can delete their download.
+    """
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
+        )
+
+    try:
+        repo = VideoDownloadRepository(db)
+        download = await repo.get_by_id_and_user(download_id, current_user.id)
+
+        if not download:
+            logger.warning(
+                f"Delete attempt for non-existent download: {download_id} by user {current_user.id}"
+            )
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Download not found"
+            )
+
+        # Delete file if it exists
+        if download.file_path:
+            file_path = Path(download.file_path)
+            try:
+                resolved = file_path.resolve()
+                storage_dir = Path("storage/downloaded-videos").resolve()
+                if storage_dir not in resolved.parents and resolved != storage_dir:
+                    logger.error(f"Illegal file path deletion attempt: {resolved}")
+                else:
+                    if resolved.exists():
+                        try:
+                            resolved.unlink()
+                            logger.info(f"Deleted download file: {resolved}")
+                        except Exception as e:
+                            logger.error(f"Failed to delete file {resolved}: {e}")
+            except Exception as e:
+                logger.error(f"File deletion path validation error: {e}")
+
+        # Delete download directory if it exists
+        download_dir = Path("storage/downloaded-videos").resolve() / str(download_id)
+        if download_dir.exists():
+            try:
+                import shutil
+                shutil.rmtree(download_dir)
+                logger.info(f"Deleted download directory: {download_dir}")
+            except Exception as e:
+                logger.error(f"Failed to delete directory {download_dir}: {e}")
+
+        # Delete database record
+        deleted = await repo.delete_by_id_and_user(download_id, current_user.id)
+        await db.commit()
+
+        if deleted:
+            logger.info(f"Download deleted: {download_id} for user {current_user.id}")
+            return {"success": True, "message": "Download deleted"}
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to delete download",
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error deleting download: {e}")
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to delete download",
+        )

@@ -18,3 +18,35 @@ export interface JobProgress {
   message?: string | null;
   error: string | null;
 }
+
+export type VideoPlatform = 'youtube' | 'instagram';
+export type DownloadType = 'audio' | 'video';
+export type VideoDownloadStatus = 'pending' | 'downloading' | 'processing' | 'completed' | 'failed';
+
+export interface VideoDownload {
+  id: string;
+  user_id: string;
+  url: string;
+  title: string | null;
+  platform: VideoPlatform;
+  download_type: DownloadType;
+  status: VideoDownloadStatus;
+  file_size: number | null;
+  thumbnail_url: string | null;
+  file_path: string | null;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface VideoDownloadRequest {
+  url: string;
+  download_type: DownloadType;
+}
+
+export interface VideoListResponse {
+  items: VideoDownload[];
+  total: number;
+  page: number;
+  page_size: number;
+}

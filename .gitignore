@@ -191,3 +191,8 @@ diffusers_cache/
 # Image Outputs
 outputs/
 renders/
+
+# Storage
+storage/downloaded-videos/
+storage/generated-audio/
+storage/temp/
