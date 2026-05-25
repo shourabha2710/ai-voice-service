@@ -4,7 +4,8 @@ import time
 import torch
 from pathlib import Path
 from typing import Optional
-from diffusers import StableDiffusionPipeline
+
+from diffusers import AutoPipelineForText2Image
 from PIL import Image
 import logging
 
@@ -13,27 +14,34 @@ logger = logging.getLogger(__name__)
 
 class ImageGenerationService:
     """
-    Optimized Image Generation Service
-    CPU + GPU compatible
-    Fast generation using SD-Turbo
+    DreamShaper XL Turbo Image Generation Service
+
+    Optimized for:
+    - Better realism
+    - Better anatomy
+    - Better cinematic quality
+    - Faster CPU generation
+    - GPU acceleration support
     """
 
     _instance: Optional["ImageGenerationService"] = None
-    _pipeline: Optional[StableDiffusionPipeline] = None
+    _pipeline: Optional[AutoPipelineForText2Image] = None
     _device: Optional[str] = None
 
-    # FAST MODEL
-    _model_name: str = "stabilityai/sd-turbo"
+    # DREAMSHAPER XL TURBO MODEL
+    _model_name: str = "Lykon/dreamshaper-xl-turbo"
 
     def __new__(cls):
         if cls._instance is None:
             cls._instance = super().__new__(cls)
+
         return cls._instance
 
     @classmethod
     def get_instance(cls) -> "ImageGenerationService":
         if cls._instance is None:
             cls._instance = cls()
+
         return cls._instance
 
     @staticmethod
@@ -51,7 +59,7 @@ class ImageGenerationService:
 
     async def initialize(self) -> None:
         """
-        Initialize optimized Stable Diffusion pipeline
+        Initialize DreamShaper XL Turbo pipeline
         """
 
         if self._pipeline is not None:
@@ -66,19 +74,20 @@ class ImageGenerationService:
                 f"on device: {self._device}"
             )
 
-            # CPU optimization
+            # CPU Optimization
             if self._device == "cpu":
                 torch.set_num_threads(os.cpu_count())
 
-            # LOAD MODEL
-            self._pipeline = StableDiffusionPipeline.from_pretrained(
+            # LOAD DREAMSHAPER XL TURBO
+            self._pipeline = AutoPipelineForText2Image.from_pretrained(
                 self._model_name,
                 torch_dtype=(
                     torch.float16
                     if self._device == "cuda"
                     else torch.float32
                 ),
-                safety_checker=None,
+                variant="fp16" if self._device == "cuda" else None,
+                use_safetensors=True,
             )
 
             # MOVE TO DEVICE
@@ -87,7 +96,11 @@ class ImageGenerationService:
             # MEMORY OPTIMIZATION
             self._pipeline.enable_attention_slicing()
 
-            logger.info("Image generation model loaded successfully.")
+            # Additional optimization
+            if self._device == "cuda":
+                self._pipeline.enable_xformers_memory_efficient_attention()
+
+            logger.info("DreamShaper XL Turbo loaded successfully.")
 
             logger.info(
                 {
@@ -107,18 +120,18 @@ class ImageGenerationService:
     async def generate_image(
         self,
         prompt: str,
-        height: int = 512,
-        width: int = 512,
-        num_inference_steps: int = 1,
-        guidance_scale: float = 0.0,
+        height: int = 1024,
+        width: int = 1024,
+        num_inference_steps: int = 6,
+        guidance_scale: float = 2.0,
         seed: Optional[int] = None,
     ) -> tuple[Image.Image, float]:
         """
-        Generate image from prompt
+        Generate image using DreamShaper XL Turbo
 
-        Optimized for SD-Turbo:
-        - 1 inference step
-        - guidance_scale 0
+        Recommended:
+        - 4 to 8 steps
+        - guidance 1.0 to 2.5
         """
 
         if self._pipeline is None:
@@ -129,24 +142,37 @@ class ImageGenerationService:
         try:
             logger.info(
                 f"IMAGE_GENERATION_STARTED | "
-                f"prompt='{prompt[:50]}'"
+                f"prompt='{prompt[:80]}'"
             )
 
             start_time = time.time()
 
-            # RANDOM SEED
+            # SEED
             if seed is not None:
                 generator = torch.Generator(
                     device=self._device
                 ).manual_seed(seed)
             else:
-                generator = None
+                generator = torch.Generator(
+                    device=self._device
+                ).manual_seed(
+                    int(time.time())
+                )
+
+            # NEGATIVE PROMPT
+            negative_prompt = (
+                "blurry, low quality, bad anatomy, "
+                "extra fingers, extra hands, deformed face, "
+                "cropped, worst quality, ugly, distorted, "
+                "duplicate body, malformed eyes"
+            )
 
             # GENERATE IMAGE
             with torch.no_grad():
 
                 result = self._pipeline(
                     prompt=prompt,
+                    negative_prompt=negative_prompt,
                     height=height,
                     width=width,
                     num_inference_steps=num_inference_steps,
@@ -191,7 +217,11 @@ class ImageGenerationService:
 
         filepath = storage_dir / filename
 
-        image.save(filepath, format="PNG")
+        image.save(
+            filepath,
+            format="PNG",
+            optimize=True,
+        )
 
         logger.info(f"Image saved: {filepath}")
 
