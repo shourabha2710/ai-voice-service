@@ -21,7 +21,7 @@ export interface JobProgress {
 
 export type VideoPlatform = 'youtube' | 'instagram';
 export type DownloadType = 'audio' | 'video';
-export type VideoDownloadStatus = 'pending' | 'downloading' | 'processing' | 'completed' | 'failed';
+export type VideoDownloadStatus = 'pending' | 'downloading' | 'processing' | 'completed' | 'failed' | 'cancelled';
 
 export interface VideoDownload {
   id: string;
@@ -34,6 +34,13 @@ export interface VideoDownload {
   file_size: number | null;
   thumbnail_url: string | null;
   file_path: string | null;
+  duration_seconds: number | null;
+  file_size_bytes: number | null;
+  progress_percent: number | null;
+  downloaded_bytes: number | null;
+  total_bytes: number | null;
+  download_speed: number | null;
+  eta_seconds: number | null;
   error_message: string | null;
   created_at: string;
   completed_at: string | null;
@@ -49,4 +56,9 @@ export interface VideoListResponse {
   total: number;
   page: number;
   page_size: number;
+}
+
+export interface CancelResponse {
+  success: boolean;
+  message: string;
 }

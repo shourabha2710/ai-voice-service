@@ -36,11 +36,16 @@ class VideoDownloadResponse(BaseModel):
     platform: str  # youtube, instagram
     download_type: str  # audio, video
     title: Optional[str]
-    status: str  # pending, downloading, processing, completed, failed
+    status: str  # pending, downloading, processing, completed, failed, cancelled
     file_path: Optional[str]
     thumbnail_url: Optional[str]
     duration_seconds: Optional[int]
     file_size_bytes: Optional[int]
+    progress_percent: Optional[int]
+    downloaded_bytes: Optional[int]
+    total_bytes: Optional[int]
+    download_speed: Optional[float]
+    eta_seconds: Optional[int]
     error_message: Optional[str]
     created_at: datetime
     completed_at: Optional[datetime]
@@ -68,9 +73,19 @@ class VideoDownloadDetailResponse(BaseModel):
     thumbnail_url: Optional[str]
     duration_seconds: Optional[int]
     file_size_bytes: Optional[int]
+    progress_percent: Optional[int]
+    downloaded_bytes: Optional[int]
+    total_bytes: Optional[int]
+    download_speed: Optional[float]
+    eta_seconds: Optional[int]
     error_message: Optional[str]
     created_at: datetime
     completed_at: Optional[datetime]
 
     class Config:
         from_attributes = True
+
+
+class CancelResponse(BaseModel):
+    success: bool
+    message: str

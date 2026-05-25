@@ -1,5 +1,5 @@
 import axios from "axios";
-import type { VideoDownload, VideoDownloadRequest, VideoListResponse } from '../types';
+import type { VideoDownload, VideoDownloadRequest, VideoListResponse, CancelResponse } from '../types';
 
 const API_BASE_URL = "http://localhost:8000/api/v1";
 
@@ -271,6 +271,12 @@ export const downloadVideoFile = async (downloadId: string): Promise<Blob> => {
   const response = await api.get(`/videos/${downloadId}/file`, {
     responseType: 'blob',
   });
+  return response.data;
+};
+
+export const cancelVideoDownload = async (downloadId: string): Promise<CancelResponse> => {
+  console.log('API_REQUEST', { path: `/videos/${downloadId}/cancel` });
+  const response = await api.post(`/videos/${downloadId}/cancel`);
   return response.data;
 };
 

@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
-import { getMyVideoDownloads, getVideoDownloadDetail } from '../lib/api';
+import { getMyVideoDownloads, getVideoDownloadDetail, cancelVideoDownload } from '../lib/api';
 import type { VideoDownload, VideoDownloadStatus } from '../types';
 
 interface VideoJob extends VideoDownload {
@@ -24,6 +24,7 @@ interface UseVideoDownloadsStore {
 
   fetchDownloads: () => Promise<void>;
   syncWithBackend: () => Promise<void>;
+  cancelJob: (id: string) => Promise<void>;
 }
 
 const dedupeDownloads = (downloads: VideoJob[]): VideoJob[] => {
@@ -86,7 +87,7 @@ export const useVideoDownloadsStore = create<UseVideoDownloadsStore>()(
         } catch (error) {
           console.error('VIDEO_POLLING_ERROR', error);
         }
-      }, 3000);
+      }, 2000);
 
       set({ _pollingIntervalId: intervalId });
       window.addEventListener('beforeunload', () => clearInterval(intervalId));
@@ -141,12 +142,30 @@ export const useVideoDownloadsStore = create<UseVideoDownloadsStore>()(
             thumbnail_url: updated.thumbnail_url,
             file_size: updated.file_size,
             file_path: updated.file_path,
+            file_size_bytes: updated.file_size_bytes,
+            duration_seconds: updated.duration_seconds,
+            progress_percent: updated.progress_percent,
+            downloaded_bytes: updated.downloaded_bytes,
+            total_bytes: updated.total_bytes,
+            download_speed: updated.download_speed,
+            eta_seconds: updated.eta_seconds,
             error_message: updated.error_message,
             completed_at: updated.completed_at,
           });
         } catch (error) {
           console.error('SYNC_VIDEO_ERROR', { id: job.id, error });
         }
+      }
+    },
+
+    cancelJob: async (id: string) => {
+      const state = get();
+      state.updateJob(id, { status: 'cancelled' as VideoDownloadStatus });
+      try {
+        await cancelVideoDownload(id);
+      } catch (error) {
+        console.error('CANCEL_VIDEO_ERROR', { id, error });
+        state.updateJob(id, { status: 'failed' as VideoDownloadStatus, error_message: 'Cancel failed' });
       }
     },
   }))

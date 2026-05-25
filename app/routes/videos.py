@@ -14,6 +14,7 @@ from app.schemas.video import (
     VideoDownloadResponse,
     VideoDownloadHistoryResponse,
     VideoDownloadDetailResponse,
+    CancelResponse,
 )
 from app.services.video_download_service import video_download_service
 from app.utils.url_utils import sanitize_url_for_logging
@@ -30,7 +31,6 @@ async def download_video(
 ):
     """
     Queue a video/audio download from YouTube or Instagram.
-
     Returns immediately with a pending record (202 Accepted).
     Download happens in the background.
     """
@@ -43,7 +43,6 @@ async def download_video(
             status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
         )
 
-    # Validate URL and download type
     valid, platform_or_error = video_download_service.validate_url(request.url)
     if not valid:
         logger.warning(f"Invalid URL from user {current_user.id}: {platform_or_error}")
@@ -52,7 +51,6 @@ async def download_video(
         )
 
     try:
-        # Create pending download record
         repo = VideoDownloadRepository(db)
         download = await repo.create(
             user_id=current_user.id,
@@ -63,7 +61,6 @@ async def download_video(
         await db.commit()
         logger.info(f"Download record created: {download.id}")
 
-        # Schedule background download
         background_tasks.add_task(
             video_download_service.download_media,
             download_id=download.id,
@@ -96,15 +93,13 @@ async def get_download_history(
 ):
     """
     Get paginated download history for the current user.
-
-    Only returns downloads created by the authenticated user.
+    Supports filtering by status (pending, downloading, processing, completed, failed, cancelled, active).
     """
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
         )
 
-    # Validate pagination bounds
     if limit <= 0 or limit > 100:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid limit; must be 1-100")
 
@@ -115,8 +110,21 @@ async def get_download_history(
         )
 
         page_num = (skip // limit) if limit else 0
+
+        items = []
+        for d in downloads:
+            resp = VideoDownloadResponse.from_orm(d)
+            progress = video_download_service.get_progress(d.id)
+            if progress and d.status in ("downloading", "pending"):
+                resp.progress_percent = progress.get("progress_percent", resp.progress_percent)
+                resp.downloaded_bytes = progress.get("downloaded_bytes", resp.downloaded_bytes)
+                resp.total_bytes = progress.get("total_bytes", resp.total_bytes)
+                resp.download_speed = progress.get("download_speed", resp.download_speed)
+                resp.eta_seconds = progress.get("eta_seconds", resp.eta_seconds)
+            items.append(resp)
+
         return VideoDownloadHistoryResponse(
-            items=[VideoDownloadResponse.from_orm(d) for d in downloads],
+            items=items,
             total=total,
             page=page_num,
             page_size=limit,
@@ -137,9 +145,7 @@ async def get_download_detail(
     db: AsyncSession = Depends(get_db),
 ):
     """
-    Get details of a specific download.
-
-    Only the owner can access their download.
+    Get details of a specific download with live progress when active.
     """
     if not current_user.is_active:
         raise HTTPException(
@@ -155,7 +161,17 @@ async def get_download_detail(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Download not found"
             )
 
-        return VideoDownloadDetailResponse.from_orm(download)
+        resp = VideoDownloadDetailResponse.from_orm(download)
+
+        progress = video_download_service.get_progress(download_id)
+        if progress and download.status in ("downloading", "pending"):
+            resp.progress_percent = progress.get("progress_percent", resp.progress_percent)
+            resp.downloaded_bytes = progress.get("downloaded_bytes", resp.downloaded_bytes)
+            resp.total_bytes = progress.get("total_bytes", resp.total_bytes)
+            resp.download_speed = progress.get("download_speed", resp.download_speed)
+            resp.eta_seconds = progress.get("eta_seconds", resp.eta_seconds)
+
+        return resp
 
     except HTTPException:
         raise
@@ -167,17 +183,64 @@ async def get_download_detail(
         )
 
 
+@router.post("/{download_id}/cancel", response_model=CancelResponse)
+async def cancel_download(
+    download_id: uuid.UUID,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Cancel an active download.
+    Only works for pending, downloading, or processing status.
+    Stops the yt-dlp process, marks as cancelled, and cleans up partial files.
+    """
+    if not current_user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
+        )
+
+    try:
+        repo = VideoDownloadRepository(db)
+        download = await repo.get_by_id_and_user(download_id, current_user.id)
+
+        if not download:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND, detail="Download not found"
+            )
+
+        if download.status not in ("pending", "downloading", "processing"):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot cancel download with status '{download.status}'",
+            )
+
+        cancelled = await video_download_service.cancel_download(download_id)
+
+        if cancelled:
+            return CancelResponse(success=True, message="Download cancelled")
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="Failed to cancel download",
+            )
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error cancelling download: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to cancel download",
+        )
+
+
 @router.get("/{download_id}/file")
 async def download_file(
     download_id: uuid.UUID,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Download the media file.
-
-    Only the owner can download their file, and only if completed.
-    """
+    """Download the media file. Only the owner can download their completed file."""
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
@@ -208,7 +271,6 @@ async def download_file(
         try:
             resolved = file_path.resolve()
             storage_dir = Path("storage/downloaded-videos").resolve()
-            # Ensure the file is inside the storage directory
             if storage_dir not in resolved.parents and resolved != storage_dir:
                 logger.error(f"Illegal file path access attempt: {resolved}")
                 raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
@@ -220,7 +282,6 @@ async def download_file(
             logger.error(f"File path validation error: {e}")
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid file path")
 
-        # Determine media type
         if download.download_type == "audio":
             media_type = "audio/mpeg"
             extension = "mp3"
@@ -254,11 +315,7 @@ async def delete_download(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    """
-    Delete a download and its associated file.
-
-    Only the owner can delete their download.
-    """
+    """Delete a download and its associated file."""
     if not current_user.is_active:
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN, detail="Your account is inactive"
@@ -276,7 +333,6 @@ async def delete_download(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Download not found"
             )
 
-        # Delete file if it exists
         if download.file_path:
             file_path = Path(download.file_path)
             try:
@@ -294,7 +350,6 @@ async def delete_download(
             except Exception as e:
                 logger.error(f"File deletion path validation error: {e}")
 
-        # Delete download directory if it exists
         download_dir = Path("storage/downloaded-videos").resolve() / str(download_id)
         if download_dir.exists():
             try:
@@ -304,7 +359,6 @@ async def delete_download(
             except Exception as e:
                 logger.error(f"Failed to delete directory {download_dir}: {e}")
 
-        # Delete database record
         deleted = await repo.delete_by_id_and_user(download_id, current_user.id)
         await db.commit()
 

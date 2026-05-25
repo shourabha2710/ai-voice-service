@@ -208,7 +208,7 @@ class TestRetry:
         session, repo = deps
         call_count = 0
 
-        def download_with_retries(url, dtype, outdir):
+        def download_with_retries(url, dtype, outdir, _hook=None):
             nonlocal call_count
             call_count += 1
             if call_count <= 2:
@@ -232,7 +232,7 @@ class TestRetry:
         session, repo = deps
         call_count = 0
 
-        def always_fail(url, dtype, outdir):
+        def always_fail(url, dtype, outdir, _hook=None):
             nonlocal call_count
             call_count += 1
             raise Exception("timed out — retryable")
@@ -254,7 +254,7 @@ class TestRetry:
         session, repo = deps
         call_count = 0
 
-        def fail_non_retry(url, dtype, outdir):
+        def fail_non_retry(url, dtype, outdir, _hook=None):
             nonlocal call_count
             call_count += 1
             raise Exception("Video is private — cannot access")
@@ -276,7 +276,7 @@ class TestRetry:
         session, repo = deps
         call_count = 0
 
-        def fail_non_retry(url, dtype, outdir):
+        def fail_non_retry(url, dtype, outdir, _hook=None):
             nonlocal call_count
             call_count += 1
             raise Exception("Video is private — cannot access")
@@ -305,7 +305,7 @@ class TestRetry:
 
         call_count = 0
 
-        def fail_transient(url, dtype, outdir):
+        def fail_transient(url, dtype, outdir, _hook=None):
             nonlocal call_count
             call_count += 1
             if call_count <= 2:
@@ -345,7 +345,7 @@ class TestConcurrency:
 
         import time
 
-        def slow_download(url, dtype, outdir):
+        def slow_download(url, dtype, outdir, _hook=None):
             nonlocal concurrency_counter, max_seen
             concurrency_counter += 1
             max_seen = max(max_seen, concurrency_counter)
@@ -383,7 +383,7 @@ class TestConcurrency:
 
         import time
 
-        def crash(url, dtype, outdir):
+        def crash(url, dtype, outdir, _hook=None):
             time.sleep(0.02)
             raise Exception("crash")
 
@@ -405,7 +405,7 @@ class TestConcurrency:
 
         import time
 
-        def fail_all(url, dtype, outdir):
+        def fail_all(url, dtype, outdir, _hook=None):
             time.sleep(0.02)
             raise Exception("not retryable")
 

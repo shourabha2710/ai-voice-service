@@ -196,3 +196,10 @@ renders/
 storage/downloaded-videos/
 storage/generated-audio/
 storage/temp/
+
+# Virtual Environments
+venv/
+test_venv/
+.venv/
+env/
+ENV/

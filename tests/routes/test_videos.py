@@ -558,6 +558,7 @@ class TestAuthentication:
         ("GET", "/api/v1/videos/me", None),
         ("GET", "/api/v1/videos/{id}", None),
         ("GET", "/api/v1/videos/{id}/file", None),
+        ("POST", "/api/v1/videos/{id}/cancel", None),
         ("DELETE", "/api/v1/videos/{id}", None),
     ])
     async def test_unauthenticated_blocked(self, unauth_client, method, path_template, body):
@@ -624,3 +625,117 @@ class TestResponseSchema:
         data = response.json()
         assert data["page"] == 2  # skip=10, limit=5 → page=2
         assert data["page_size"] == 5
+
+
+# ---------------------------------------------------------------
+#  9. Cancel download
+# ---------------------------------------------------------------
+
+class TestCancelDownload:
+    async def test_cancel_pending_download(self, client, mock_user, mock_db_session, mock_repo, auth_header):
+        """POST /{id}/cancel should cancel a pending download."""
+        mock_download = MagicMock()
+        mock_download.id = uuid.uuid4()
+        mock_download.user_id = mock_user.id
+        mock_download.status = "pending"
+        mock_repo.get_by_id_and_user.return_value = mock_download
+
+        with patch("app.routes.videos.VideoDownloadRepository", return_value=mock_repo):
+            with patch(
+                "app.routes.videos.video_download_service.cancel_download",
+                new_callable=AsyncMock,
+                return_value=True,
+            ) as mock_cancel:
+                response = await client.post(
+                    f"/api/v1/videos/{mock_download.id}/cancel",
+                    headers=auth_header,
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["success"] is True
+        mock_cancel.assert_called_once_with(mock_download.id)
+
+    async def test_cancel_completed_returns_400(self, client, mock_user, mock_db_session, mock_repo, auth_header):
+        """Cancel should fail for completed downloads."""
+        mock_download = MagicMock()
+        mock_download.id = uuid.uuid4()
+        mock_download.user_id = mock_user.id
+        mock_download.status = "completed"
+        mock_repo.get_by_id_and_user.return_value = mock_download
+
+        with patch("app.routes.videos.VideoDownloadRepository", return_value=mock_repo):
+            response = await client.post(
+                f"/api/v1/videos/{mock_download.id}/cancel",
+                headers=auth_header,
+            )
+
+        assert response.status_code == 400
+
+    async def test_cancel_not_found(self, client, mock_repo, auth_header):
+        """Cancel should return 404 for non-existent download."""
+        mock_repo.get_by_id_and_user.return_value = None
+
+        with patch("app.routes.videos.VideoDownloadRepository", return_value=mock_repo):
+            response = await client.post(
+                f"/api/v1/videos/{uuid.uuid4()}/cancel",
+                headers=auth_header,
+            )
+
+        assert response.status_code == 404
+
+    async def test_cancel_ownership_enforced(self, client, mock_user, mock_repo, auth_header):
+        """User cannot cancel another user's download."""
+        mock_download = MagicMock()
+        mock_download.id = uuid.uuid4()
+        mock_download.user_id = uuid.uuid4()
+        mock_repo.get_by_id_and_user.return_value = None
+
+        with patch("app.routes.videos.VideoDownloadRepository", return_value=mock_repo):
+            response = await client.post(
+                f"/api/v1/videos/{mock_download.id}/cancel",
+                headers=auth_header,
+            )
+
+        assert response.status_code == 404
+
+    async def test_cancel_inactive_user(self, client, inactive_user, auth_header):
+        """Inactive user cannot cancel."""
+        app = _make_test_app(inactive_user, AsyncMock())
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://testserver") as c:
+            response = await c.post(
+                f"/api/v1/videos/{uuid.uuid4()}/cancel",
+                headers=auth_header,
+            )
+        assert response.status_code == 403
+
+    async def test_progress_in_detail_response(self, client, mock_user, mock_db_session, mock_repo, auth_header, mock_download_record):
+        """Detail endpoint should include progress fields when download is active."""
+        mock_download_record.user_id = mock_user.id
+        mock_download_record.status = "downloading"
+        mock_repo.get_by_id_and_user.return_value = mock_download_record
+
+        mock_progress = {
+            "progress_percent": 45,
+            "downloaded_bytes": 45_000_000,
+            "total_bytes": 100_000_000,
+            "download_speed": 2_500_000.0,
+            "eta_seconds": 22,
+        }
+
+        with patch("app.routes.videos.VideoDownloadRepository", return_value=mock_repo):
+            with patch(
+                "app.routes.videos.video_download_service.get_progress",
+                return_value=mock_progress,
+            ):
+                response = await client.get(
+                    f"/api/v1/videos/{mock_download_record.id}",
+                    headers=auth_header,
+                )
+
+        assert response.status_code == 200
+        data = response.json()
+        assert data["progress_percent"] == 45
+        assert data["download_speed"] == 2_500_000.0
+        assert data["eta_seconds"] == 22

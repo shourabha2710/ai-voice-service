@@ -62,7 +62,12 @@ class VideoDownloadRepository:
         query = select(VideoDownload).where(VideoDownload.user_id == user_id)
 
         if status:
-            query = query.where(VideoDownload.status == status)
+            if status == "active":
+                query = query.where(
+                    VideoDownload.status.in_(["pending", "downloading", "processing"])
+                )
+            else:
+                query = query.where(VideoDownload.status == status)
 
         # Get total count
         count_result = await self.session.execute(
@@ -112,6 +117,37 @@ class VideoDownloadRepository:
             download.error_message = error_message
         if status == "completed":
             download.completed_at = datetime.utcnow()
+        if status == "cancelled":
+            download.completed_at = datetime.utcnow()
+
+        self.session.add(download)
+        await self.session.flush()
+        return download
+
+    async def update_progress(
+        self,
+        download_id: uuid.UUID,
+        progress_percent: int | None = None,
+        downloaded_bytes: int | None = None,
+        total_bytes: int | None = None,
+        download_speed: float | None = None,
+        eta_seconds: int | None = None
+    ) -> VideoDownload | None:
+        """Update download progress fields."""
+        download = await self.get_by_id(download_id)
+        if not download:
+            return None
+
+        if progress_percent is not None:
+            download.progress_percent = progress_percent
+        if downloaded_bytes is not None:
+            download.downloaded_bytes = downloaded_bytes
+        if total_bytes is not None:
+            download.total_bytes = total_bytes
+        if download_speed is not None:
+            download.download_speed = download_speed
+        if eta_seconds is not None:
+            download.eta_seconds = eta_seconds
 
         self.session.add(download)
         await self.session.flush()
@@ -144,9 +180,9 @@ class VideoDownloadRepository:
             )
         )
         downloads = result.scalars().all()
-        
+
         for download in downloads:
             await self.session.delete(download)
-        
+
         await self.session.flush()
         return len(downloads)
