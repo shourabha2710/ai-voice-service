@@ -85,3 +85,8 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+    video_generations: Mapped[list["VideoGeneration"]] = relationship(
+        "VideoGeneration",
+        back_populates="user",
+        cascade="all, delete-orphan"
+    )

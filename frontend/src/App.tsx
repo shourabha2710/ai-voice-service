@@ -12,6 +12,7 @@ import LandingPage from './pages/LandingPage'
 import GeneratorPage from './pages/GeneratorPage'
 import ImageGeneratorPage from './pages/ImageGeneratorPage'
 import VideoDownloaderPage from './pages/VideoDownloaderPage'
+import TextToVideoPage from './pages/TextToVideoPage'
 import JobsPage from './pages/JobsPage'
 import FeaturesPage from './pages/FeaturesPage'
 import AboutPage from './pages/AboutPage'
@@ -34,6 +35,7 @@ function AnimatedRoutes() {
         <Route path="/generator" element={<PageWrapper><GeneratorPage /></PageWrapper>} />
         <Route path="/images" element={<PageWrapper><ImageGeneratorPage /></PageWrapper>} />
         <Route path="/videos" element={<PageWrapper><VideoDownloaderPage /></PageWrapper>} />
+        <Route path="/text-to-video" element={<PageWrapper><TextToVideoPage /></PageWrapper>} />
         <Route path="/jobs" element={<PageWrapper><JobsPage /></PageWrapper>} />
         <Route path="/features" element={<PageWrapper><FeaturesPage /></PageWrapper>} />
         <Route path="/about" element={<PageWrapper><AboutPage /></PageWrapper>} />

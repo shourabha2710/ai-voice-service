@@ -285,4 +285,86 @@ export const deleteVideoDownload = async (downloadId: string): Promise<void> => 
   await api.delete(`/videos/${downloadId}`);
 };
 
+// Text-to-Video Generation APIs
+export interface VideoGeneration {
+  id: string;
+  user_id: string;
+  prompt: string;
+  status: "pending" | "processing" | "completed" | "failed";
+  video_path: string | null;
+  video_url?: string | null;
+  thumbnail_path: string | null;
+  thumbnail_url?: string | null;
+  duration_seconds: number | null;
+  aspect_ratio: string;
+  resolution: string;
+  progress_percent: number | null;
+  error_message: string | null;
+  created_at: string;
+  completed_at: string | null;
+}
+
+export interface TextToVideoRequest {
+  prompt: string;
+  duration?: number;
+  aspect_ratio?: string;
+  quality?: string;
+}
+
+export interface VideoGenerationHistoryResponse {
+  items: VideoGeneration[];
+  total: number;
+  page: number;
+  page_size: number;
+}
+
+export const generateVideo = async (data: TextToVideoRequest): Promise<VideoGeneration> => {
+  console.log('VIDEO_GENERATE_API_CALL', { prompt: data.prompt.slice(0, 80) });
+  const response = await api.post('/text-to-video/generate', data);
+  return response.data;
+};
+
+export const getVideoGenerationHistory = async (
+  skip = 0,
+  limit = 20,
+  status?: string
+): Promise<VideoGenerationHistoryResponse> => {
+  console.log('API_REQUEST', { path: '/text-to-video/me', skip, limit, status });
+  const response = await api.get('/text-to-video/me', {
+    params: {
+      skip,
+      limit,
+      status_filter: status,
+    },
+  });
+  return response.data;
+};
+
+export const getVideoGenerationDetail = async (videoId: string): Promise<VideoGeneration> => {
+  console.log('API_REQUEST', { path: `/text-to-video/${videoId}` });
+  const response = await api.get(`/text-to-video/${videoId}`);
+  return response.data;
+};
+
+export const downloadGeneratedVideo = async (videoId: string): Promise<Blob> => {
+  console.log('API_REQUEST', { path: `/text-to-video/${videoId}/file` });
+  const response = await api.get(`/text-to-video/${videoId}/file`, {
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+export const getVideoThumbnail = async (videoId: string): Promise<Blob> => {
+  console.log('API_REQUEST', { path: `/text-to-video/${videoId}/thumbnail` });
+  const response = await api.get(`/text-to-video/${videoId}/thumbnail`, {
+    responseType: 'blob',
+  });
+  return response.data;
+};
+
+export const deleteVideoGeneration = async (videoId: string): Promise<void> => {
+  console.log('API_REQUEST', { path: `/text-to-video/${videoId}` });
+  await api.delete(`/text-to-video/${videoId}`);
+};
+
 export default api;

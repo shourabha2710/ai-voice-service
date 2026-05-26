@@ -21,6 +21,7 @@ class CleanupService:
                 await self.cleanup_expired_jobs()
                 await self.cleanup_old_files()
                 await self.cleanup_old_video_downloads()
+                await self.cleanup_old_video_generations()
                 await asyncio.sleep(settings.CLEANUP_INTERVAL_MINUTES * 60)
             except Exception as e:
                 logger.error(f"Cleanup error: {e}")
@@ -140,6 +141,50 @@ class CleanupService:
             logger.error(f"Video download cleanup error: {e}")
 
 # Remove global singleton - use dependency injection instead
+
+    async def cleanup_old_video_generations(self):
+        """Clean up old video generation files from filesystem and database."""
+        try:
+            expiration = settings.JOB_EXPIRATION_MINUTES
+            if expiration is None:
+                return
+            cutoff = datetime.utcnow().timestamp() - (expiration * 60)
+
+            try:
+                from app.db.session import AsyncSessionLocal
+                from app.db.repositories.video_generation import VideoGenerationRepository
+                from app.db.models.video_generation import VideoGeneration
+
+                async with AsyncSessionLocal() as session:
+                    repo = VideoGenerationRepository(session)
+                    result = await session.execute(
+                        select(VideoGeneration).where(
+                            (VideoGeneration.completed_at.isnot(None)) &
+                            (VideoGeneration.created_at < datetime.fromtimestamp(cutoff)) &
+                            ((VideoGeneration.status == "completed") | (VideoGeneration.status == "failed"))
+                        )
+                    )
+                    old_generations = result.scalars().all()
+
+                    for gen in old_generations:
+                        try:
+                            from app.services.video_generation_service import video_generation_service
+                            video_generation_service.cleanup_generated_files(gen.id)
+                            await session.delete(gen)
+                            logger.info(f"Cleaned up old video generation: {gen.id}")
+                        except Exception as e:
+                            logger.error(f"Error cleaning up video generation {gen.id}: {e}")
+
+                    if old_generations:
+                        await session.commit()
+                        logger.info(f"Cleaned up {len(old_generations)} old video generations")
+
+            except Exception as e:
+                logger.error(f"Error cleaning up video generation records: {e}")
+
+        except Exception as e:
+            logger.error(f"Video generation cleanup error: {e}")
+
 
 cleanup_service = CleanupService()
 
