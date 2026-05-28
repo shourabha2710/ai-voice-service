@@ -24,7 +24,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-const API_BASE = 'http://localhost:8000/api/v1/auth';
+const API_BASE = 'https://api.promptmediaai.com/api/v1/auth';
 
 async function fetchUser(token: string): Promise<User> {
   const res = await fetch(`${API_BASE}/me`, {

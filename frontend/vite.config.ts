@@ -8,11 +8,11 @@ export default defineConfig({
     port: 5173,
     proxy: {
       "/api": {
-        target: "http://localhost:8000",
+        target: "https://api.promptmediaai.com",
         changeOrigin: true,
       },
       "/health": {
-        target: "http://localhost:8000",
+        target: "https://api.promptmediaai.com",
         changeOrigin: true,
       },
     },

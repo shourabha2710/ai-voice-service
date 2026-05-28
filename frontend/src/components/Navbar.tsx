@@ -74,7 +74,7 @@ export default function Navbar() {
           <div className="flex items-center gap-2">
             <div className="hidden items-center gap-2 sm:flex">
               <a
-                href="http://localhost:8000/api/v1/tts/docs"
+                href="https://api.promptmediaai.com/api/v1/tts/docs"
                 target="_blank"
                 rel="noreferrer"
                 className="flex items-center gap-1.5 rounded-lg border border-white/[0.06] px-3.5 py-2 text-xs font-medium text-[#8888a0] no-underline transition-all duration-200 hover:border-white/[0.14] hover:text-white hover:bg-white/[0.04]"
@@ -156,7 +156,7 @@ export default function Navbar() {
                   </Link>
                 ))}
                 <a
-                  href="http://localhost:8000/api/v1/tts/docs"
+                  href="https://api.promptmediaai.com/api/v1/tts/docs"
                   target="_blank"
                   rel="noreferrer"
                   className="px-4 py-3 text-sm font-medium text-[#8888a0] flex items-center gap-2"
