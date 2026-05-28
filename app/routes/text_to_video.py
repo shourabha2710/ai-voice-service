@@ -333,9 +333,7 @@ async def _generate_video_background(
             await db.commit()
             await update_progress(10)
 
-            if image_service._pipeline is None:
-                logger.info(f"Initializing image service for generation: {generation_id}")
-                await image_service.initialize()
+            logger.info(f"Starting frame generation for video generation: {generation_id}")
             await update_progress(15)
 
             frame_paths = await video_generation_service.generate_video_frames(

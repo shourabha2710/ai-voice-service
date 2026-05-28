@@ -82,5 +82,3 @@ export default function VideoFilters({
     </div>
   );
 }
-
-export type { FilterType, SortType };

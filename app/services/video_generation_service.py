@@ -10,13 +10,13 @@ from typing import Optional
 from PIL import Image
 
 from app.config.settings import settings
-from app.services.image_service import image_service
 
 logger = logging.getLogger(__name__)
 
 
 class VideoGenerationService:
     _instance: Optional["VideoGenerationService"] = None
+    _image_service = None
 
     VIDEO_STORAGE = Path("storage/generated-videos")
     TEMP_FRAMES = Path("storage/temp-frames")
@@ -31,6 +31,15 @@ class VideoGenerationService:
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
+
+    async def _ensure_image_service(self) -> None:
+        if self._image_service is None:
+            from app.services.image_service import image_service
+            self._image_service = image_service
+        if self._image_service._pipeline is None:
+            logger.info("Initializing image generation service for video frames")
+            await self._image_service.initialize()
+            logger.info("Image generation service initialized")
 
     def _ensure_dirs(self) -> None:
         self.VIDEO_STORAGE.mkdir(parents=True, exist_ok=True)
@@ -58,15 +67,21 @@ class VideoGenerationService:
         generation_id: uuid.UUID,
         count: int = 4,
     ) -> list[Path]:
+        await self._ensure_image_service()
         self._ensure_dirs()
         frame_paths = []
         for i in range(count):
             seed = int(time.time() * 1000) % (2**31)
             logger.info(f"Generating frame {i+1}/{count} for generation {generation_id}")
-            image, _ = await image_service.generate_image(
-                prompt=prompt,
-                seed=seed,
-            )
+            try:
+                image, gen_time = await self._image_service.generate_image(
+                    prompt=prompt,
+                    seed=seed,
+                )
+                logger.info(f"Frame {i+1} generated in {gen_time:.2f}s")
+            except Exception as e:
+                logger.error(f"Frame {i+1} generation FAILED: {e}")
+                raise
             frame_path = self.TEMP_FRAMES / f"{generation_id}_{i}.png"
             image.save(frame_path, format="PNG")
             frame_paths.append(frame_path)
