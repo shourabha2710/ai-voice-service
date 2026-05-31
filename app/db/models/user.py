@@ -90,3 +90,9 @@ class User(Base):
         back_populates="user",
         cascade="all, delete-orphan"
     )
+# Register relationship targets when User is imported directly.
+from app.db.models.audio import AudioGeneration  # noqa: E402,F401
+from app.db.models.image import ImageGeneration  # noqa: E402,F401
+from app.db.models.token import RefreshToken  # noqa: E402,F401
+from app.db.models.video import VideoDownload  # noqa: E402,F401
+from app.db.models.video_generation import VideoGeneration  # noqa: E402,F401
